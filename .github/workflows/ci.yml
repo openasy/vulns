@@ -73,3 +73,52 @@ jobs:
 
       - name: Scan a host and an image, accept a risk, rescan
         run: vulns/e2e/run.sh
+
+  # The Helm chart on a real cluster: lint, install with these images, every node scanned, helm test (ADR 0016, 0029).
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: vulns
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: openasy/vulns-agent
+          path: vulns-agent
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      - uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          cluster_name: vulns
+
+      - name: Lint every option
+        run: |
+          helm lint vulns/charts/vulns
+          helm lint vulns/charts/vulns --set vulns.ingress.enabled=true --set vulns.ingress.tlsSecretName=tls \
+            --set metrics.serviceMonitor.enabled=true --set networkPolicy.enabled=true --set vulns.image.digest=sha256:0
+          helm lint vulns/charts/vulns --set vulns.enabled=false --set agent.url=https://vulns.example.com --set auth.ingestToken=x
+
+      - name: Build and load the images
+        run: |
+          docker build -t vulns:dev vulns
+          docker build -t vulns-agent:dev vulns-agent
+          kind load docker-image vulns:dev vulns-agent:dev --name vulns
+
+      - name: Install, scan every node, helm test
+        run: |
+          helm install vulns vulns/charts/vulns -n openasy --create-namespace --wait --timeout 5m \
+            --set vulns.image.repository=vulns --set vulns.image.tag=dev --set vulns.image.pullPolicy=Never \
+            --set agent.image.repository=vulns-agent --set agent.image.tag=dev --set agent.image.pullPolicy=Never \
+            --set vulns.feedUpdateHours=0 --set agent.heartbeatSeconds=5
+          helm test vulns -n openasy --logs
+
+      - name: Upgrade keeps the tokens
+        run: |
+          before=$(kubectl -n openasy get secret vulns -o jsonpath='{.data.VULNS_ADMIN_TOKEN}')
+          helm upgrade vulns vulns/charts/vulns -n openasy --reset-then-reuse-values --wait --timeout 5m
+          test "$before" = "$(kubectl -n openasy get secret vulns -o jsonpath='{.data.VULNS_ADMIN_TOKEN}')"
+
+      - if: failure()
+        run: kubectl -n openasy get pods -o wide && kubectl -n openasy logs deploy/vulns --tail 50 && kubectl -n openasy logs ds/vulns-agent --tail 50

@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     ports:
       - "127.0.0.1:8080:8080"   # UI and API; put a TLS proxy in front to reach it from elsewhere
     volumes:
@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    security_opt: ["no-new-privileges:true"]
     tmpfs: [/tmp]
     hostname: ${HOSTNAME:-host}   # the name this host gets in vulns
     volumes:

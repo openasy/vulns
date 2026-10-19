@@ -17,6 +17,8 @@ docker network create e2e-vulns >/dev/null
 
 # The "host": an Ubuntu 24.04 root filesystem, mounted read-only like / on a real host.
 cid=$(docker create ubuntu:24.04) && docker export "$cid" | tar -x -C "$D" 2>/dev/null; docker rm "$cid" >/dev/null
+# mktemp makes the directory 0700; a real / is 0755, and the agent reads it as an unprivileged user.
+chmod 755 "$D"
 HOST_ROOT="$D"
 
 FEED=(-e VULNS_FEED_UPDATE_HOURS=24)

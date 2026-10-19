@@ -712,87 +712,147 @@ function Code({ children }: { children: ReactNode }) {
   return <pre className="m-0 overflow-x-auto rounded-md bg-subtle px-2.5 py-2 font-mono text-xs text-fg">{children}</pre>;
 }
 
-function SetupPage({ call, feed, reload, version }: { call: Call; feed?: Feed; reload: () => void; version?: string }) {
-  const origin = window.location.origin;
-  const tag = version ?? "<version>";
-  const [hostsOn, setHostsOn] = useState<"docker" | "kubernetes">("docker");
+/** "1 Vulnerability data" with a numbered marker, for the first-run steps. */
+function StepTitle({ n, children }: { n?: number; children: ReactNode }) {
+  if (!n) return <>{children}</>;
+  return (
+    <span className="flex items-center gap-2">
+      <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-semibold text-accent-text">
+        {n}
+      </span>
+      <span>
+        <span className="sr-only">Step {n}: </span>
+        {children}
+      </span>
+    </span>
+  );
+}
+
+function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; reload: () => void; step?: number }) {
   const update = () => void call("/api/v1/feed/update", { method: "POST" }).then(reload);
   return (
-    <>
-      <PageHeader title="Setup" description="Where the vulnerability data comes from, and how hosts and images get here." />
-      <Panel
-        title="Vulnerability data"
-        description="Grype's database: distribution advisories (Debian, Ubuntu, RHEL, Alpine and more), GitHub advisories, NVD, CISA KEV and EPSS. Only this data is downloaded; nothing about this install is sent."
-        actions={
+    <Panel
+      title={<StepTitle n={step}>Vulnerability data</StepTitle>}
+      description="Grype's database: distribution advisories (Debian, Ubuntu, RHEL, Alpine and more), GitHub advisories, NVD, CISA KEV and EPSS. Only this data is downloaded; nothing about this install is sent."
+      actions={
+        <>
+          {step && (feed?.built ? <StatusBadge tone="success">Ready</StatusBadge> : feed?.updating ? <StatusBadge tone="info">Downloading</StatusBadge> : <StatusBadge tone="warning">Missing</StatusBadge>)}
           <Button size="sm" icon={<RefreshCw />} onClick={update} loading={feed?.updating} disabled={feed?.updating}>
             Update now
           </Button>
-        }
-      >
-        <dl className="vulns-pairs text-sm">
-          <dt className="text-fg-muted">Built</dt>
-          <dd className="m-0">{feed?.built ? `${new Date(feed.built).toLocaleString()} (${ago(feed.built)})` : "Not downloaded yet"}</dd>
-          <dt className="text-fg-muted">Schema</dt>
-          <dd className="m-0 font-mono">{feed?.schema ?? "–"}</dd>
-          <dt className="text-fg-muted">Last check</dt>
-          <dd className="m-0">{ago(feed?.checkedAt)}</dd>
-          {feed?.error && (
-            <>
-              <dt className="text-fg-muted">Last error</dt>
-              <dd className="m-0 text-danger">{feed.error}</dd>
-            </>
-          )}
-        </dl>
-        <p className="mt-3 mb-1 text-sm text-fg-muted">Without internet access, download the archive on another machine and upload it:</p>
-        <Code>{`grype db download -o vulnerability-db.tar.zst   # or the URL from: grype db list
-curl -sf -X PUT -H "Authorization: Bearer $VULNS_ADMIN_TOKEN" -H 'content-type: application/zstd' \\
-  --data-binary @vulnerability-db.tar.zst ${origin}/api/v1/feed`}</Code>
-      </Panel>
-      <Panel
-        title="Hosts"
-        description="vulns-agent reads a host's package databases through a read-only mount, as an unprivileged user, and only sends the SBOM here. It needs the ingest token (VULNS_INGEST_TOKEN)."
-        actions={
-          <SegmentedControl
-            label="Where the hosts run"
-            size="sm"
-            value={hostsOn}
-            onChange={setHostsOn}
-            options={[
-              { value: "docker", label: "Docker" },
-              { value: "kubernetes", label: "Kubernetes" },
-            ]}
-          />
-        }
-      >
-        {hostsOn === "docker" ? (
+        </>
+      }
+    >
+      <dl className="vulns-pairs text-sm">
+        <dt className="text-fg-muted">Built</dt>
+        <dd className="m-0">{feed?.built ? `${new Date(feed.built).toLocaleString()} (${ago(feed.built)})` : feed?.updating ? "Downloading now: about 200 MB, a few minutes" : "Not downloaded yet"}</dd>
+        <dt className="text-fg-muted">Schema</dt>
+        <dd className="m-0 font-mono">{feed?.schema ?? "–"}</dd>
+        <dt className="text-fg-muted">Last check</dt>
+        <dd className="m-0">{ago(feed?.checkedAt)}</dd>
+        {feed?.error && (
           <>
-            <p className="mb-1 text-sm text-fg-muted">On each host:</p>
-            <Code>{`docker run -d --name vulns-agent --restart unless-stopped --hostname "$(hostname)" \\
+            <dt className="text-fg-muted">Last error</dt>
+            <dd className="m-0 text-danger">{feed.error}</dd>
+          </>
+        )}
+      </dl>
+      <p className="mt-3 mb-1 text-sm text-fg-muted">Without internet access, download the archive on another machine and upload it:</p>
+      <Code>{`grype db download -o vulnerability-db.tar.zst   # or the URL from: grype db list
+curl -sf -X PUT -H "Authorization: Bearer $VULNS_ADMIN_TOKEN" -H 'content-type: application/zstd' \\
+  --data-binary @vulnerability-db.tar.zst ${window.location.origin}/api/v1/feed`}</Code>
+    </Panel>
+  );
+}
+
+function HostsPanel({ version, step }: { version?: string; step?: number }) {
+  const origin = window.location.origin;
+  const tag = version ?? "<version>";
+  const [hostsOn, setHostsOn] = useState<"docker" | "kubernetes">("docker");
+  return (
+    <Panel
+      title={<StepTitle n={step}>{step ? "Add hosts" : "Hosts"}</StepTitle>}
+      description="vulns-agent reads a host's package databases through a read-only mount, as an unprivileged user, and only sends the SBOM here. It needs the ingest token (VULNS_INGEST_TOKEN)."
+      actions={
+        <SegmentedControl
+          label="Where the hosts run"
+          size="sm"
+          value={hostsOn}
+          onChange={setHostsOn}
+          options={[
+            { value: "docker", label: "Docker" },
+            { value: "kubernetes", label: "Kubernetes" },
+          ]}
+        />
+      }
+    >
+      {hostsOn === "docker" ? (
+        <>
+          <p className="mb-1 text-sm text-fg-muted">On each host:</p>
+          <Code>{`docker run -d --name vulns-agent --restart unless-stopped --hostname "$(hostname)" \\
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \\
   -v /:/host:ro -e VULNS_URL=${origin} -e VULNS_INGEST_TOKEN=... \\
   ghcr.io/openasy/vulns-agent:${tag}`}</Code>
-          </>
-        ) : (
-          <>
-            <p className="mb-1 text-sm text-fg-muted">
-              Once per cluster: the Helm chart runs vulns-agent on every node, new nodes included. Nodes appear under Hosts as Kubernetes nodes.
-            </p>
-            <Code>{`helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version ${tag} \\
+        </>
+      ) : (
+        <>
+          <p className="mb-1 text-sm text-fg-muted">
+            Once per cluster: the Helm chart runs vulns-agent on every node, new nodes included. Nodes appear under Hosts as Kubernetes nodes.
+          </p>
+          <Code>{`helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version ${tag} \\
   --namespace openasy --create-namespace \\
   --set vulns.enabled=false --set agent.url=${origin} --set auth.ingestToken=...`}</Code>
-            <p className="mt-2 text-sm text-fg-muted">
-              The agent mounts each node's / read-only (hostPath), which the Pod Security baseline and restricted levels forbid. If your cluster enforces them, allow it for this namespace with{" "}
-              <code className="font-mono text-xs">kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged</code>. Clusters that forbid hostPath entirely, such as GKE Autopilot, cannot run it.
-            </p>
-          </>
-        )}
-      </Panel>
-      <Panel title="Images" description="Send an SBOM from CI after each build. With wait=true the answer holds the findings, so the job can fail on them.">
-        <Code>{`syft "$IMAGE" -o syft-json | curl -sf -X POST -H "Authorization: Bearer $VULNS_INGEST_TOKEN" \\
+          <p className="mt-2 text-sm text-fg-muted">
+            The agent mounts each node's / read-only (hostPath), which the Pod Security baseline and restricted levels forbid. If your cluster enforces them, allow it for this namespace with{" "}
+            <code className="font-mono text-xs">kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged</code>. Clusters that forbid hostPath entirely, such as GKE Autopilot, cannot run it.
+          </p>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+function ImagesPanel({ step }: { step?: number }) {
+  return (
+    <Panel
+      title={<StepTitle n={step}>{step ? "Check images in CI" : "Images"}</StepTitle>}
+      description="Send an SBOM from CI after each build. With wait=true the answer holds the findings, so the job can fail on them."
+    >
+      <Code>{`syft "$IMAGE" -o syft-json | curl -sf -X POST -H "Authorization: Bearer $VULNS_INGEST_TOKEN" \\
   -H 'content-type: application/json' --data-binary @- \\
-  "${origin}/api/v1/sboms?kind=image&name=$IMAGE&wait=true" > result.json
+  "${window.location.origin}/api/v1/sboms?kind=image&name=$IMAGE&wait=true" > result.json
 jq -e '.knownExploited == 0 and .open.critical == 0' result.json   # fail the build`}</Code>
-      </Panel>
+    </Panel>
+  );
+}
+
+function SetupPage({ call, feed, reload, version }: { call: Call; feed?: Feed; reload: () => void; version?: string }) {
+  return (
+    <>
+      <PageHeader title="Setup" description="Where the vulnerability data comes from, and how hosts and images get here." />
+      <FeedPanel call={call} feed={feed} reload={reload} />
+      <HostsPanel version={version} />
+      <ImagesPanel />
+    </>
+  );
+}
+
+/** The first screen, until the first host or image arrives. The summary is polled, so it gives way by itself. */
+function WelcomePage({ call, feed, reload, version }: { call: Call; feed?: Feed; reload: () => void; version?: string }) {
+  return (
+    <>
+      <PageHeader
+        title="Get started"
+        description="Three steps: the vulnerability data, your hosts, your images. Findings show here as soon as the first host or image is matched; you can also send just one of them."
+        actions={<StatusBadge tone="info">Waiting for the first host or image</StatusBadge>}
+      />
+      <FeedPanel call={call} feed={feed} reload={reload} step={1} />
+      <HostsPanel version={version} step={2} />
+      <ImagesPanel step={3} />
+      <p className="m-0 text-sm text-fg-muted">
+        Tokens are set where vulns runs: VULNS_INGEST_TOKEN for agents and CI, VULNS_ADMIN_TOKEN for this screen. With the Helm chart they are in the release's Secret. Everything here is also in the{" "}
+        <a href="/api/docs/">API</a>.
+      </p>
     </>
   );
 }
@@ -864,6 +924,8 @@ export function App() {
               setToken(t);
             }}
           />
+        ) : route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
+          <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
         ) : route.page === "findings" ? (
           <FindingsPage call={call} summary={summary} reload={reload} />
         ) : route.page === "hosts" || route.page === "images" ? (

@@ -60,8 +60,40 @@ least 8 GB. SBOMs sent before it arrives are kept and matched as soon as it does
 | `VULNS_FEED_DIR` | `/data/grype` | Grype's vulnerability data |
 | `VULNS_HEADLESS` | `false` | `true` serves only the API |
 
+| `VULNS_METRICS_PORT` | | Serve `/metrics` on this port only, not on `PORT` (ADR 0026). The Helm chart uses 9090 |
+
 The container runs as non-root with a read-only root filesystem, no capabilities and `no-new-privileges`; everything it
 writes goes to `/data`.
+
+### Kubernetes
+
+```bash
+helm install vulns oci://ghcr.io/openasy/charts/vulns --version 0.1.0 --namespace openasy --create-namespace
+helm test vulns -n openasy
+```
+
+The [chart](./charts/vulns) installs vulns as one pod with a 10 GB volume and vulns-agent on every node as a
+DaemonSet; nodes appear under Hosts as Kubernetes nodes. vulns always runs as a single replica with the `Recreate`
+strategy, because one process owns the SQLite file (ADR 0011, 0018): Kubernetes restarts it elsewhere when a node
+fails, but does not run two. Tokens are generated on install and kept across upgrades; `/metrics` is on port 9090,
+which the optional Ingress does not expose. See [`values.yaml`](./charts/vulns/values.yaml) for every option
+(Ingress with TLS, ServiceMonitor, NetworkPolicy, pinned image digests, air-gapped).
+
+vulns meets the Pod Security `restricted` level. vulns-agent reads each node's `/` through a read-only `hostPath`
+mount, which `baseline` and `restricted` forbid: allow it for the namespace with
+`kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged`. The agent itself still runs
+unprivileged, without capabilities and with a read-only root filesystem. Clusters that forbid `hostPath` entirely,
+such as GKE Autopilot, cannot run the agent: set `agent.enabled=false` there and send SBOMs from CI.
+
+Already running vulns elsewhere, for example with Compose? Install only the agents, and every node reports to it:
+
+```bash
+helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version 0.1.0 --namespace openasy --create-namespace \
+  --set vulns.enabled=false --set agent.url=https://vulns.example.com --set auth.ingestToken=$VULNS_INGEST_TOKEN
+```
+
+Upgrade with `helm upgrade vulns oci://ghcr.io/openasy/charts/vulns --version <new> -n openasy --reset-then-reuse-values`
+(plain `--reuse-values` does not pick up options added in the new chart).
 
 ### Hosts
 
@@ -74,7 +106,8 @@ docker run -d --name vulns-agent --restart unless-stopped --hostname "$(hostname
   ghcr.io/openasy/vulns-agent:0.1.0
 ```
 
-It scans on start and every 6 hours, and when someone clicks *Scan now*.
+It scans on start and every 6 hours, and when someone clicks *Scan now*. On Kubernetes the chart runs it on every
+node instead (see [Kubernetes](#kubernetes)).
 
 ### Images
 
@@ -167,6 +200,18 @@ npm start      # API on :8080; needs grype on PATH (VULNS_GRYPE_BIN) and VULNS_D
 npm run dev    # web UI on :5173, proxies /api
 npm run typecheck && npm test
 e2e/run.sh     # needs Docker and the vulns:dev and vulns-agent:dev images; GRYPE_DB_DIR=<dir> reuses downloaded data
+helm lint charts/vulns
+```
+
+CI also installs the chart on a [kind](https://kind.sigs.k8s.io/) cluster with the images it built, waits for every
+node to be scanned, runs `helm test` and checks that an upgrade keeps the tokens. To do the same locally:
+
+```bash
+kind create cluster --name vulns && kind load docker-image vulns:dev vulns-agent:dev --name vulns
+helm install vulns charts/vulns -n openasy --create-namespace --wait \
+  --set vulns.image.repository=vulns,vulns.image.tag=dev,vulns.image.pullPolicy=Never \
+  --set agent.image.repository=vulns-agent,agent.image.tag=dev,agent.image.pullPolicy=Never
+helm test vulns -n openasy --logs
 ```
 
 Node runs the TypeScript sources in `server/` directly; there is no build step for the server. Tests replace Grype with
@@ -174,10 +219,12 @@ a stand-in that answers with real Grype output (`server/fixtures`); `e2e/run.sh`
 
 ## Release
 
-1. Set `version` in `package.json` and `openapi.json`, merge to `main`.
+1. Set the version in `package.json`, `openapi.json` and `charts/vulns/Chart.yaml` (`version` and `appVersion`), merge
+   to `main`. The release refuses a tag that does not match all of them.
 2. Push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
 3. GitHub Actions tests, builds `linux/amd64` and `linux/arm64`, pushes `ghcr.io/openasy/vulns:0.1.0` and `:0.1`
-   (never `latest`), signs it, attaches the SBOM and provenance, and creates the GitHub release.
+   (never `latest`), signs it, attaches the SBOM and provenance, pushes the chart to `oci://ghcr.io/openasy/charts/vulns`
+   and signs it, and creates the GitHub release.
 4. Release vulns-agent with the same version.
 
 ## Design decisions

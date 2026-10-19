@@ -30,6 +30,12 @@ jobs:
       - name: Check the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "${GITHUB_REF_NAME}"
 
+      - name: Check the chart and the API have the same version (ADR 0019)
+        run: |
+          grep -qx "version: ${GITHUB_REF_NAME#v}" charts/vulns/Chart.yaml
+          grep -qx "appVersion: \"${GITHUB_REF_NAME#v}\"" charts/vulns/Chart.yaml
+          test "$(node -p 'require("./openapi.json").info.version')" = "${GITHUB_REF_NAME#v}"
+
       - name: Check the tag is on main or an LTS branch
         id: branch
         run: |
@@ -129,18 +135,50 @@ jobs:
     secrets:
       registry-password: ${{ secrets.GITHUB_TOKEN }}
 
+  # The Helm chart as an OCI artifact next to the images, signed the same way (ADR 0016).
+  chart:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Package, push and sign
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm package charts/vulns
+          out=$(helm push "vulns-${GITHUB_REF_NAME#v}.tgz" oci://ghcr.io/openasy/charts 2>&1)
+          echo "$out"
+          digest=$(echo "$out" | sed -n 's/^Digest: //p')
+          echo "$GH_TOKEN" | cosign login ghcr.io -u "${{ github.actor }}" --password-stdin
+          cosign sign --yes "ghcr.io/openasy/charts/vulns@${digest}"
+
   release:
-    needs: [image, provenance]
+    needs: [image, provenance, chart]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # Tags are vX.Y.Z; images and the chart are X.Y.Z.
+      - id: v
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           generate_release_notes: true
           body: |
             ```bash
-            docker pull ${{ env.IMAGE }}:${{ github.ref_name }}
+            helm install vulns oci://ghcr.io/openasy/charts/vulns --version ${{ steps.v.outputs.version }} -n openasy --create-namespace
+            docker pull ${{ env.IMAGE }}:${{ steps.v.outputs.version }}
             cosign verify ${{ env.IMAGE }}@${{ needs.image.outputs.digest }} \
               --certificate-identity-regexp '^https://github.com/openasy/vulns/' \
               --certificate-oidc-issuer https://token.actions.githubusercontent.com
