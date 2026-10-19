@@ -1,0 +1,42 @@
+# Vulnerabilities: the product (API, web UI and Grype) plus vulns-agent for this host.
+# Run one vulns-agent on every other host you want covered; send image SBOMs from CI (see README).
+#
+#   export VULNS_ADMIN_TOKEN=$(openssl rand -hex 32) VULNS_INGEST_TOKEN=$(openssl rand -hex 32)
+#   docker compose up -d
+#
+# The first start downloads about 200 MB of vulnerability data (3 GB unpacked on the volume).
+# This release has no sign-in yet: use it only for testing.
+services:
+  vulns:
+    image: ghcr.io/openasy/vulns:0.1.0
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ports:
+      - "127.0.0.1:8080:8080"   # UI and API; put a TLS proxy in front to reach it from elsewhere
+    volumes:
+      - vulns-data:/data   # SQLite database, SBOMs and the vulnerability data
+    environment:
+      VULNS_ADMIN_TOKEN: ${VULNS_ADMIN_TOKEN:?set VULNS_ADMIN_TOKEN}
+      VULNS_INGEST_TOKEN: ${VULNS_INGEST_TOKEN:?set VULNS_INGEST_TOKEN}
+      # VULNS_FEED_UPDATE_HOURS: "0"   # air-gapped: no downloads, import the data with PUT /api/v1/feed
+
+  vulns-agent:
+    image: ghcr.io/openasy/vulns-agent:0.1.0
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    hostname: ${HOSTNAME:-host}   # the name this host gets in vulns
+    volumes:
+      - /:/host:ro   # read-only: the agent lists packages, it never changes the host
+    environment:
+      VULNS_URL: http://vulns:8080
+      VULNS_INGEST_TOKEN: ${VULNS_INGEST_TOKEN:?set VULNS_INGEST_TOKEN}
+    depends_on:
+      - vulns
+
+volumes:
+  vulns-data:

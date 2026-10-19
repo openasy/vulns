@@ -1,0 +1,93 @@
+# OpenAsy Vulnerabilities. Every value is optional; `helm install vulns oci://ghcr.io/openasy/charts/vulns` works as is.
+
+# Tokens until sign-in exists (ADR 0002). Leave both empty to have the chart generate them once and keep them across
+# upgrades, or name a Secret you manage with the keys VULNS_ADMIN_TOKEN and VULNS_INGEST_TOKEN.
+auth:
+  existingSecret: ""
+  adminToken: ""
+  ingestToken: ""
+
+vulns:
+  # false installs only vulns-agent, for nodes that report to a vulns running elsewhere: set agent.url and
+  # auth.ingestToken (or auth.existingSecret).
+  enabled: true
+  image:
+    repository: ghcr.io/openasy/vulns
+    # Defaults to the chart's appVersion. Set digest to pin the exact image you verified with cosign (ADR 0016).
+    tag: ""
+    digest: ""
+    pullPolicy: IfNotPresent
+  # How often to download newer vulnerability data. 0 turns downloads off: import the data with PUT /api/v1/feed.
+  feedUpdateHours: 24
+  # A mirror of https://grype.anchore.io/databases.
+  feedUrl: ""
+  retentionDays: 90
+  # true serves only the API.
+  headless: false
+  # Extra environment variables, as a list of EnvVar.
+  extraEnv: []
+  # SQLite, the SBOMs and the vulnerability data (3 GB unpacked, twice that while it is replaced). One writer only:
+  # vulns always runs as a single replica (ADR 0011, 0018).
+  persistence:
+    size: 10Gi
+    storageClassName: ""
+    # Use a PersistentVolumeClaim you created instead.
+    existingClaim: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    # Matching a large SBOM briefly needs a few hundred MB on top of the idle ~80 MB.
+    limits: { memory: 1Gi }
+  service:
+    type: ClusterIP
+    port: 8080
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    host: vulns.example.com
+    # TLS ends at the ingress (ADR 0026). Name the Secret that holds the certificate, or let cert-manager fill it.
+    tlsSecretName: ""
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+agent:
+  # vulns-agent on every node: lists the node's packages with Syft through a read-only mount of / and sends the SBOM.
+  enabled: true
+  # The vulns the agents report to. Defaults to the one this chart installs.
+  url: ""
+  image:
+    repository: ghcr.io/openasy/vulns-agent
+    tag: ""
+    digest: ""
+    pullPolicy: IfNotPresent
+  scanHours: 6
+  heartbeatSeconds: 60
+  # More paths to skip, relative to the node's root.
+  scanExclude: []
+  extraEnv: []
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    # Syft needs more while it scans a node with many language packages.
+    limits: { memory: 512Mi }
+  # Runs on every node, control plane included.
+  tolerations:
+    - operator: Exists
+  nodeSelector: {}
+  podAnnotations: {}
+
+metrics:
+  # A ServiceMonitor for the Prometheus Operator, for vulns and the agents (ADR 0017).
+  serviceMonitor:
+    enabled: false
+    interval: 60s
+    labels: {}
+
+# Allow traffic to vulns only from its agents, the namespaces you list (for example your ingress controller's) and
+# Prometheus. Needs a network plugin that enforces NetworkPolicy.
+networkPolicy:
+  enabled: false
+  ingressNamespaces: []
+
+imagePullSecrets: []

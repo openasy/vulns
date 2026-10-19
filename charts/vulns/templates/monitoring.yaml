@@ -1,0 +1,75 @@
+{{- if .Values.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "vulns.fullname" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "vulns.selector" . | nindent 6 }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.metrics.serviceMonitor.interval }}
+{{- if .Values.agent.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "vulns.agentName" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "vulns.agentSelector" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: {{ .Values.metrics.serviceMonitor.interval }}
+{{- end }}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "vulns.fullname" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "vulns.selector" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    # Agents and the chart's test send SBOMs and heartbeats.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: http
+    {{- with .Values.networkPolicy.ingressNamespaces }}
+    # The UI and API, through your ingress controller.
+    - from:
+        {{- range . }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
+      ports:
+        - port: http
+    {{- end }}
+    # Prometheus, from any namespace, on the metrics port only.
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: metrics
+{{- end }}

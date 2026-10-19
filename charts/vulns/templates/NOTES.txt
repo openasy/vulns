@@ -1,0 +1,37 @@
+{{- if not .Values.vulns.enabled }}
+vulns-agent {{ .Chart.AppVersion }} runs on every node and reports to {{ .Values.agent.url }}.
+Nodes appear under Hosts there, marked as Kubernetes nodes, within a minute.
+
+The namespace must allow hostPath volumes (Pod Security "privileged"): the agent reads each node's / read-only.
+{{- else }}
+OpenAsy Vulnerabilities {{ .Chart.AppVersion }} is starting. This release has no sign-in yet: use it only for testing.
+
+1. Open the UI and API:
+{{- if .Values.vulns.ingress.enabled }}
+     https://{{ .Values.vulns.ingress.host }}
+{{- else }}
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "vulns.fullname" . }} 8080:{{ .Values.vulns.service.port }}
+     open http://127.0.0.1:8080
+{{- end }}
+
+2. Sign in with the admin token:
+     kubectl -n {{ .Release.Namespace }} get secret {{ include "vulns.secretName" . }} -o jsonpath='{.data.VULNS_ADMIN_TOKEN}' | base64 -d; echo
+
+3. The first start downloads the vulnerability data (about 200 MB, 3 GB unpacked).
+{{- if .Values.agent.enabled }} Every node is scanned by vulns-agent
+   and appears under Hosts; findings show once the data is there.
+{{- end }}
+{{- if eq (toString .Values.vulns.feedUpdateHours) "0" }}
+   Downloads are off: import the data with PUT /api/v1/feed (see the Setup page).
+{{- end }}
+
+4. Send image SBOMs from CI with the ingest token:
+     kubectl -n {{ .Release.Namespace }} get secret {{ include "vulns.secretName" . }} -o jsonpath='{.data.VULNS_INGEST_TOKEN}' | base64 -d; echo
+
+Check the install: helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+{{- if .Values.agent.enabled }}
+
+vulns-agent reads each node's / through a read-only hostPath mount, which the Pod Security "baseline" and
+"restricted" levels forbid; the namespace must allow it. vulns itself meets "restricted".
+{{- end }}
+{{- end }}

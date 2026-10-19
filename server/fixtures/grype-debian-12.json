@@ -1,0 +1,792 @@
+{
+ "matches": [
+  {
+   "vulnerability": {
+    "id": "CVE-2023-4911",
+    "dataSource": "https://security-tracker.debian.org/tracker/CVE-2023-4911",
+    "namespace": "debian:distro:debian:12",
+    "severity": "High",
+    "urls": [],
+    "description": "A buffer overflow was discovered in the GNU C Library's dynamic loader ld.so while processing the GLIBC_TUNABLES environment variable. This issue could allow a local attacker to use maliciously crafted GLIBC_TUNABLES environment variables when launching binaries with SUID permission to execute code with elevated privileges.",
+    "cvss": [
+     {
+      "source": "nvd@nist.gov",
+      "type": "Primary",
+      "version": "3.1",
+      "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+      "metrics": {
+       "baseScore": 7.8,
+       "exploitabilityScore": 1.9,
+       "impactScore": 5.9
+      },
+      "vendorMetadata": {}
+     }
+    ],
+    "knownExploited": [
+     {
+      "cve": "CVE-2023-4911",
+      "vendorProject": "GNU",
+      "product": "GNU C Library",
+      "dateAdded": "2023-11-21",
+      "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
+      "dueDate": "2023-12-12",
+      "knownRansomwareCampaignUse": "unknown",
+      "notes": "This vulnerability affects a common open-source component, third-party library, or a protocol used by different products. Please check with specific vendors for information on patching status. For more information, please see: https://sourceware.org/git/?p=glibc.git; a=commitdiff; h=1056e5b4c3f2d90ed2b4a55f96add28da2f4c8fa, https://access.redhat.com/security/cve/cve-2023-4911, https://www.debian.org/security/2023/dsa-5514",
+      "urls": [
+       "https://nvd.nist.gov/vuln/detail/CVE-2023-4911"
+      ],
+      "cwes": [
+       "CWE-122"
+      ]
+     }
+    ],
+    "epss": [
+     {
+      "cve": "CVE-2023-4911",
+      "epss": 0.63769,
+      "percentile": 0.99216,
+      "date": "2026-10-18"
+     }
+    ],
+    "cwes": [
+     {
+      "cve": "CVE-2023-4911",
+      "cwe": "CWE-122",
+      "source": "secalert@redhat.com",
+      "type": "Secondary"
+     },
+     {
+      "cve": "CVE-2023-4911",
+      "cwe": "CWE-787",
+      "source": "nvd@nist.gov",
+      "type": "Primary"
+     }
+    ],
+    "fix": {
+     "versions": [
+      "2.36-9+deb12u3"
+     ],
+     "state": "fixed",
+     "available": [
+      {
+       "version": "2.36-9+deb12u3",
+       "date": "2023-10-03",
+       "kind": "advisory"
+      }
+     ]
+    },
+    "advisories": [
+     {
+      "id": "DSA-5514-1",
+      "link": "https://security-tracker.debian.org/tracker/DSA-5514-1"
+     }
+    ],
+    "risk": 80.325
+   },
+   "relatedVulnerabilities": [
+    {
+     "id": "CVE-2023-4911",
+     "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-4911",
+     "namespace": "nvd:cpe",
+     "severity": "High",
+     "urls": [
+      "https://access.redhat.com/errata/RHSA-2023:5453",
+      "https://access.redhat.com/errata/RHSA-2023:5454"
+     ],
+     "description": "A buffer overflow was discovered in the GNU C Library's dynamic loader ld.so while processing the GLIBC_TUNABLES environment variable. This issue could allow a local attacker to use maliciously crafted GLIBC_TUNABLES environment variables when launching binaries with SUID permission to execute code with elevated privileges.",
+     "cvss": [
+      {
+       "source": "nvd@nist.gov",
+       "type": "Primary",
+       "version": "3.1",
+       "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+       "metrics": {
+        "baseScore": 7.8,
+        "exploitabilityScore": 1.9,
+        "impactScore": 5.9
+       },
+       "vendorMetadata": {}
+      },
+      {
+       "source": "secalert@redhat.com",
+       "type": "Secondary",
+       "version": "3.1",
+       "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+       "metrics": {
+        "baseScore": 7.8,
+        "exploitabilityScore": 1.9,
+        "impactScore": 5.9
+       },
+       "vendorMetadata": {}
+      }
+     ],
+     "knownExploited": [
+      {
+       "cve": "CVE-2023-4911",
+       "vendorProject": "GNU",
+       "product": "GNU C Library",
+       "dateAdded": "2023-11-21",
+       "requiredAction": "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.",
+       "dueDate": "2023-12-12",
+       "knownRansomwareCampaignUse": "unknown",
+       "notes": "This vulnerability affects a common open-source component, third-party library, or a protocol used by different products. Please check with specific vendors for information on patching status. For more information, please see: https://sourceware.org/git/?p=glibc.git; a=commitdiff; h=1056e5b4c3f2d90ed2b4a55f96add28da2f4c8fa, https://access.redhat.com/security/cve/cve-2023-4911, https://www.debian.org/security/2023/dsa-5514",
+       "urls": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2023-4911"
+       ],
+       "cwes": [
+        "CWE-122"
+       ]
+      }
+     ],
+     "epss": [
+      {
+       "cve": "CVE-2023-4911",
+       "epss": 0.63769,
+       "percentile": 0.99216,
+       "date": "2026-10-18"
+      }
+     ],
+     "cwes": [
+      {
+       "cve": "CVE-2023-4911",
+       "cwe": "CWE-122",
+       "source": "secalert@redhat.com",
+       "type": "Secondary"
+      },
+      {
+       "cve": "CVE-2023-4911",
+       "cwe": "CWE-787",
+       "source": "nvd@nist.gov",
+       "type": "Primary"
+      }
+     ]
+    }
+   ],
+   "matchDetails": [
+    {
+     "type": "exact-indirect-match",
+     "matcher": "dpkg-matcher",
+     "searchedBy": {
+      "distro": {
+       "type": "debian",
+       "version": "12.0"
+      },
+      "package": {
+       "name": "glibc",
+       "version": "2.36-9"
+      },
+      "namespace": "debian:distro:debian:12"
+     },
+     "found": {
+      "vulnerabilityID": "CVE-2023-4911",
+      "versionConstraint": "< 2.36-9+deb12u3 (deb)"
+     },
+     "fix": {
+      "suggestedVersion": "2.36-9+deb12u3"
+     }
+    }
+   ],
+   "artifact": {
+    "id": "a57f996c49060eba",
+    "name": "libc-bin",
+    "version": "2.36-9",
+    "type": "deb",
+    "locations": [
+     {
+      "path": "/var/lib/dpkg/status",
+      "layerID": "sha256:42f253cd68b44bef697e08c3510860cda98a30b247efe4a60e4134f45ca44e14",
+      "accessPath": "/var/lib/dpkg/status",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "language": "",
+    "purl": "pkg:deb/debian/libc-bin@2.36-9?arch=arm64&distro=debian-12.0&upstream=glibc",
+    "upstreams": [
+     {
+      "name": "glibc"
+     }
+    ]
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2023-6780",
+    "dataSource": "https://security-tracker.debian.org/tracker/CVE-2023-6780",
+    "namespace": "debian:distro:debian:12",
+    "severity": "Medium",
+    "urls": [],
+    "description": "An integer overflow was found in the __vsyslog_internal function of the glibc library. This function is called by the syslog and vsyslog functions. This issue occurs when these functions are called with a very long message, leading to an incorrect calculation of the buffer size to store the message, resulting in undefined behavior. This issue affects glibc 2.37 and newer.",
+    "cvss": [
+     {
+      "source": "nvd@nist.gov",
+      "type": "Primary",
+      "version": "3.1",
+      "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+      "metrics": {
+       "baseScore": 5.3,
+       "exploitabilityScore": 3.9,
+       "impactScore": 1.5
+      },
+      "vendorMetadata": {}
+     }
+    ],
+    "epss": [
+     {
+      "cve": "CVE-2023-6780",
+      "epss": 0.02689,
+      "percentile": 0.85637,
+      "date": "2026-10-18"
+     }
+    ],
+    "cwes": [
+     {
+      "cve": "CVE-2023-6780",
+      "cwe": "CWE-131",
+      "source": "secalert@redhat.com",
+      "type": "Secondary"
+     },
+     {
+      "cve": "CVE-2023-6780",
+      "cwe": "CWE-131",
+      "source": "nvd@nist.gov",
+      "type": "Secondary"
+     },
+     {
+      "cve": "CVE-2023-6780",
+      "cwe": "CWE-190",
+      "source": "nvd@nist.gov",
+      "type": "Secondary"
+     }
+    ],
+    "fix": {
+     "versions": [
+      "2.36-9+deb12u4"
+     ],
+     "state": "fixed",
+     "available": [
+      {
+       "version": "2.36-9+deb12u4",
+       "date": "2024-01-30",
+       "kind": "advisory"
+      }
+     ]
+    },
+    "advisories": [
+     {
+      "id": "DSA-5611-1",
+      "link": "https://security-tracker.debian.org/tracker/DSA-5611-1"
+     }
+    ],
+    "risk": 1.384835
+   },
+   "relatedVulnerabilities": [
+    {
+     "id": "CVE-2023-6780",
+     "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2023-6780",
+     "namespace": "nvd:cpe",
+     "severity": "Medium",
+     "urls": [
+      "http://packetstormsecurity.com/files/176932/glibc-syslog-Heap-Based-Buffer-Overflow.html",
+      "http://seclists.org/fulldisclosure/2024/Feb/3"
+     ],
+     "description": "An integer overflow was found in the __vsyslog_internal function of the glibc library. This function is called by the syslog and vsyslog functions. This issue occurs when these functions are called with a very long message, leading to an incorrect calculation of the buffer size to store the message, resulting in undefined behavior. This issue affects glibc 2.37 and newer.",
+     "cvss": [
+      {
+       "source": "nvd@nist.gov",
+       "type": "Primary",
+       "version": "3.1",
+       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+       "metrics": {
+        "baseScore": 5.3,
+        "exploitabilityScore": 3.9,
+        "impactScore": 1.5
+       },
+       "vendorMetadata": {}
+      },
+      {
+       "source": "secalert@redhat.com",
+       "type": "Secondary",
+       "version": "3.1",
+       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+       "metrics": {
+        "baseScore": 5.3,
+        "exploitabilityScore": 3.9,
+        "impactScore": 1.5
+       },
+       "vendorMetadata": {}
+      }
+     ],
+     "epss": [
+      {
+       "cve": "CVE-2023-6780",
+       "epss": 0.02689,
+       "percentile": 0.85637,
+       "date": "2026-10-18"
+      }
+     ],
+     "cwes": [
+      {
+       "cve": "CVE-2023-6780",
+       "cwe": "CWE-131",
+       "source": "secalert@redhat.com",
+       "type": "Secondary"
+      },
+      {
+       "cve": "CVE-2023-6780",
+       "cwe": "CWE-131",
+       "source": "nvd@nist.gov",
+       "type": "Secondary"
+      },
+      {
+       "cve": "CVE-2023-6780",
+       "cwe": "CWE-190",
+       "source": "nvd@nist.gov",
+       "type": "Secondary"
+      }
+     ]
+    }
+   ],
+   "matchDetails": [
+    {
+     "type": "exact-indirect-match",
+     "matcher": "dpkg-matcher",
+     "searchedBy": {
+      "distro": {
+       "type": "debian",
+       "version": "12.0"
+      },
+      "package": {
+       "name": "glibc",
+       "version": "2.36-9"
+      },
+      "namespace": "debian:distro:debian:12"
+     },
+     "found": {
+      "vulnerabilityID": "CVE-2023-6780",
+      "versionConstraint": "< 2.36-9+deb12u4 (deb)"
+     },
+     "fix": {
+      "suggestedVersion": "2.36-9+deb12u4"
+     }
+    }
+   ],
+   "artifact": {
+    "id": "a57f996c49060eba",
+    "name": "libc-bin",
+    "version": "2.36-9",
+    "type": "deb",
+    "locations": [
+     {
+      "path": "/var/lib/dpkg/status",
+      "layerID": "sha256:42f253cd68b44bef697e08c3510860cda98a30b247efe4a60e4134f45ca44e14",
+      "accessPath": "/var/lib/dpkg/status",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "language": "",
+    "purl": "pkg:deb/debian/libc-bin@2.36-9?arch=arm64&distro=debian-12.0&upstream=glibc",
+    "upstreams": [
+     {
+      "name": "glibc"
+     }
+    ]
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-82560",
+    "dataSource": "https://security-tracker.debian.org/tracker/CVE-2026-82560",
+    "namespace": "debian:distro:debian:12",
+    "severity": "High",
+    "urls": [],
+    "description": "Pod::Text versions before 6.1.1 for Perl allow CPU and memory exhaustion formatting a POD document whose =over nesting drives the margin to the output width.  Each =over adds its indent to the margin, which wrap() subtracts from the output width to get the space available for text. When that space reaches zero, the line-splitting substitution matches the empty string, and the loop consumes no input while appending the margin padding on every pass.  Formatting an attacker-supplied POD document never returns, and the output grows until memory is exhausted.",
+    "cvss": [
+     {
+      "source": "134c704f-9b21-4f2e-91b3-4a467353bcc0",
+      "type": "Secondary",
+      "version": "3.1",
+      "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+      "metrics": {
+       "baseScore": 7.5,
+       "exploitabilityScore": 3.9,
+       "impactScore": 3.6
+      },
+      "vendorMetadata": {}
+     }
+    ],
+    "epss": [
+     {
+      "cve": "CVE-2026-82560",
+      "epss": 0.0063,
+      "percentile": 0.49129,
+      "date": "2026-10-18"
+     }
+    ],
+    "cwes": [
+     {
+      "cve": "CVE-2026-82560",
+      "cwe": "CWE-835",
+      "source": "9b29abf9-4ab0-4765-b253-1875cd9b441e",
+      "type": "Secondary"
+     }
+    ],
+    "fix": {
+     "versions": [],
+     "state": "not-fixed"
+    },
+    "advisories": [],
+    "risk": 0.47250000000000003
+   },
+   "relatedVulnerabilities": [
+    {
+     "id": "CVE-2026-82560",
+     "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2026-82560",
+     "namespace": "nvd:cpe",
+     "severity": "High",
+     "urls": [
+      "https://github.com/rra/podlators/commit/70510174f69eb54aa6d617bde4e1402cd9b7c61f.patch",
+      "https://metacpan.org/release/RRA/podlators-v6.1.0/source/lib/Pod/Text.pm#L245-261"
+     ],
+     "description": "Pod::Text versions before 6.1.1 for Perl allow CPU and memory exhaustion formatting a POD document whose =over nesting drives the margin to the output width.\n\nEach =over adds its indent to the margin, which wrap() subtracts from the output width to get the space available for text. When that space reaches zero, the line-splitting substitution matches the empty string, and the loop consumes no input while appending the margin padding on every pass.\n\nFormatting an attacker-supplied POD document never returns, and the output grows until memory is exhausted.",
+     "cvss": [
+      {
+       "source": "134c704f-9b21-4f2e-91b3-4a467353bcc0",
+       "type": "Secondary",
+       "version": "3.1",
+       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+       "metrics": {
+        "baseScore": 7.5,
+        "exploitabilityScore": 3.9,
+        "impactScore": 3.6
+       },
+       "vendorMetadata": {}
+      }
+     ],
+     "epss": [
+      {
+       "cve": "CVE-2026-82560",
+       "epss": 0.0063,
+       "percentile": 0.49129,
+       "date": "2026-10-18"
+      }
+     ],
+     "cwes": [
+      {
+       "cve": "CVE-2026-82560",
+       "cwe": "CWE-835",
+       "source": "9b29abf9-4ab0-4765-b253-1875cd9b441e",
+       "type": "Secondary"
+      }
+     ]
+    }
+   ],
+   "matchDetails": [
+    {
+     "type": "exact-indirect-match",
+     "matcher": "dpkg-matcher",
+     "searchedBy": {
+      "distro": {
+       "type": "debian",
+       "version": "12.0"
+      },
+      "package": {
+       "name": "perl",
+       "version": "5.36.0-7"
+      },
+      "namespace": "debian:distro:debian:12"
+     },
+     "found": {
+      "vulnerabilityID": "CVE-2026-82560",
+      "versionConstraint": "none (unknown)"
+     }
+    }
+   ],
+   "artifact": {
+    "id": "dc9e0fb1456b0fd4",
+    "name": "perl-base",
+    "version": "5.36.0-7",
+    "type": "deb",
+    "locations": [
+     {
+      "path": "/var/lib/dpkg/status",
+      "layerID": "sha256:42f253cd68b44bef697e08c3510860cda98a30b247efe4a60e4134f45ca44e14",
+      "accessPath": "/var/lib/dpkg/status",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "language": "",
+    "purl": "pkg:deb/debian/perl-base@5.36.0-7?arch=arm64&distro=debian-12.0&upstream=perl",
+    "upstreams": [
+     {
+      "name": "perl"
+     }
+    ]
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-13151",
+    "dataSource": "https://security-tracker.debian.org/tracker/CVE-2025-13151",
+    "namespace": "debian:distro:debian:12",
+    "severity": "High",
+    "urls": [],
+    "description": "Stack-based buffer overflow in libtasn1 version: v4.20.0. The function fails to validate the size of input data resulting in a buffer overflow in asn1_expend_octet_string.",
+    "cvss": [
+     {
+      "source": "134c704f-9b21-4f2e-91b3-4a467353bcc0",
+      "type": "Secondary",
+      "version": "3.1",
+      "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+      "metrics": {
+       "baseScore": 7.5,
+       "exploitabilityScore": 3.9,
+       "impactScore": 3.6
+      },
+      "vendorMetadata": {}
+     }
+    ],
+    "epss": [
+     {
+      "cve": "CVE-2025-13151",
+      "epss": 0.01175,
+      "percentile": 0.67057,
+      "date": "2026-10-18"
+     }
+    ],
+    "cwes": [
+     {
+      "cve": "CVE-2025-13151",
+      "cwe": "CWE-787",
+      "source": "nvd@nist.gov",
+      "type": "Primary"
+     }
+    ],
+    "fix": {
+     "versions": [],
+     "state": "wont-fix"
+    },
+    "advisories": [],
+    "risk": 0.8812500000000001
+   },
+   "relatedVulnerabilities": [
+    {
+     "id": "CVE-2025-13151",
+     "dataSource": "https://nvd.nist.gov/vuln/detail/CVE-2025-13151",
+     "namespace": "nvd:cpe",
+     "severity": "High",
+     "urls": [
+      "https://gitlab.com/gnutls/libtasn1",
+      "https://gitlab.com/gnutls/libtasn1/-/merge_requests/121"
+     ],
+     "description": "Stack-based buffer overflow in libtasn1 version: v4.20.0. The function fails to validate the size of input data resulting in a buffer overflow in asn1_expend_octet_string.",
+     "cvss": [
+      {
+       "source": "134c704f-9b21-4f2e-91b3-4a467353bcc0",
+       "type": "Secondary",
+       "version": "3.1",
+       "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+       "metrics": {
+        "baseScore": 7.5,
+        "exploitabilityScore": 3.9,
+        "impactScore": 3.6
+       },
+       "vendorMetadata": {}
+      }
+     ],
+     "epss": [
+      {
+       "cve": "CVE-2025-13151",
+       "epss": 0.01175,
+       "percentile": 0.67057,
+       "date": "2026-10-18"
+      }
+     ],
+     "cwes": [
+      {
+       "cve": "CVE-2025-13151",
+       "cwe": "CWE-787",
+       "source": "nvd@nist.gov",
+       "type": "Primary"
+      }
+     ]
+    }
+   ],
+   "matchDetails": [
+    {
+     "type": "exact-direct-match",
+     "matcher": "dpkg-matcher",
+     "searchedBy": {
+      "distro": {
+       "type": "debian",
+       "version": "12.0"
+      },
+      "package": {
+       "name": "libtasn1-6",
+       "version": "4.19.0-2"
+      },
+      "namespace": "debian:distro:debian:12"
+     },
+     "found": {
+      "vulnerabilityID": "CVE-2025-13151",
+      "versionConstraint": "none (unknown)"
+     }
+    }
+   ],
+   "artifact": {
+    "id": "5b146a45621a5008",
+    "name": "libtasn1-6",
+    "version": "4.19.0-2",
+    "type": "deb",
+    "locations": [
+     {
+      "path": "/var/lib/dpkg/status",
+      "layerID": "sha256:42f253cd68b44bef697e08c3510860cda98a30b247efe4a60e4134f45ca44e14",
+      "accessPath": "/var/lib/dpkg/status",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "language": "",
+    "purl": "pkg:deb/debian/libtasn1-6@4.19.0-2?arch=arm64&distro=debian-12.0",
+    "upstreams": []
+   }
+  }
+ ],
+ "source": {
+  "type": "image",
+  "target": {
+   "userInput": "debian:12.0"
+  }
+ },
+ "distro": {
+  "name": "debian",
+  "version": "12.0",
+  "idLike": []
+ },
+ "descriptor": {
+  "name": "grype",
+  "version": "0.120.1",
+  "db": {
+   "status": {
+    "schemaVersion": "v6.1.10",
+    "from": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-10-19T00:32:50Z_1792391955.tar.zst?checksum=sha256%3A13a192236b248579678bbf06cefb2a07a5dcbd00da110cfb5c3e26eb68a7ce58",
+    "built": "2026-10-19T06:39:15Z",
+    "path": "/db/6/vulnerability.db",
+    "valid": true
+   },
+   "providers": {
+    "alma": {
+     "captured": "2026-10-19T00:32:51Z",
+     "input": "xxh64:5c542a957c117376"
+    },
+    "alpine": {
+     "captured": "2026-10-19T00:33:02Z",
+     "input": "xxh64:5f363779c674ada4"
+    },
+    "amazon": {
+     "captured": "2026-10-19T00:33:21Z",
+     "input": "xxh64:52a47ee649cc127e"
+    },
+    "arch": {
+     "captured": "2026-10-19T00:33:49Z",
+     "input": "xxh64:5f557552bade4ac3"
+    },
+    "bitnami": {
+     "captured": "2026-10-19T00:33:38Z",
+     "input": "xxh64:e6182d154b45ad72"
+    },
+    "chainguard": {
+     "captured": "2026-10-19T00:33:17Z",
+     "input": "xxh64:8eda0d0e268f8edf"
+    },
+    "chainguard-libraries": {
+     "captured": "2026-10-19T00:32:52Z",
+     "input": "xxh64:42950b1eccce3da8"
+    },
+    "debian": {
+     "captured": "2026-10-19T00:33:45Z",
+     "input": "xxh64:a122e93b1be7cc47"
+    },
+    "echo": {
+     "captured": "2026-10-19T00:33:11Z",
+     "input": "xxh64:98bb6f68e501aa41"
+    },
+    "eol": {
+     "captured": "2026-10-19T00:32:54Z",
+     "input": "xxh64:0771c1acc8382c98"
+    },
+    "epss": {
+     "captured": "2026-10-19T00:33:01Z",
+     "input": "xxh64:c38e4633ffebe443"
+    },
+    "fedora": {
+     "captured": "2026-10-19T00:33:00Z",
+     "input": "xxh64:c6007579e02c4d08"
+    },
+    "github": {
+     "captured": "2026-10-19T00:33:11Z",
+     "input": "xxh64:80b0f7c5ed9125cc"
+    },
+    "govulndb": {
+     "captured": "2026-10-19T00:32:56Z",
+     "input": "xxh64:d5aff9670480489c"
+    },
+    "hummingbird": {
+     "captured": "2026-10-19T00:36:36Z",
+     "input": "xxh64:e17745d368d13ff4"
+    },
+    "kev": {
+     "captured": "2026-10-19T00:32:58Z",
+     "input": "xxh64:0e36abba80f004a5"
+    },
+    "mariner": {
+     "captured": "2026-10-19T00:32:54Z",
+     "input": "xxh64:9875358e4f290aff"
+    },
+    "minimos": {
+     "captured": "2026-10-19T00:33:06Z",
+     "input": "xxh64:d74dd905a7d08bdb"
+    },
+    "nvd": {
+     "captured": "2026-10-19T00:34:25Z",
+     "input": "xxh64:50523c3038eff7c9"
+    },
+    "oracle": {
+     "captured": "2026-10-19T00:33:21Z",
+     "input": "xxh64:b4034548afc6165c"
+    },
+    "photon": {
+     "captured": "2026-10-19T00:33:35Z",
+     "input": "xxh64:f036afbc998077b9"
+    },
+    "rhel": {
+     "captured": "2026-10-19T00:34:49Z",
+     "input": "xxh64:7058a90e23573e8d"
+    },
+    "secureos": {
+     "captured": "2026-10-19T00:32:50Z",
+     "input": "xxh64:51c46a7d8bd2c9db"
+    },
+    "sles": {
+     "captured": "2026-10-19T00:35:40Z",
+     "input": "xxh64:dc04a98609632d1d"
+    },
+    "ubuntu": {
+     "captured": "2026-10-19T00:34:31Z",
+     "input": "xxh64:879416a4f22e3e89"
+    },
+    "wolfi": {
+     "captured": "2026-10-19T00:33:24Z",
+     "input": "xxh64:5847deacb68ce005"
+    }
+   }
+  }
+ }
+}

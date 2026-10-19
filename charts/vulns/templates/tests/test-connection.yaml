@@ -1,0 +1,55 @@
+{{- if .Values.vulns.enabled }}
+{{- /* `helm test`: vulns answers, the tokens work and the agents have reported. Uses the vulns image's own Node. */}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "vulns.fullname" . }}-test
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsUser: 65532
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: test
+      image: {{ include "vulns.image" (dict "image" .Values.vulns.image "appVersion" .Chart.AppVersion) }}
+      imagePullPolicy: {{ .Values.vulns.image.pullPolicy }}
+      securityContext:
+        {{- include "vulns.containerSecurity" . | nindent 8 }}
+      envFrom:
+        - secretRef:
+            name: {{ include "vulns.secretName" . }}
+      env:
+        - name: BASE
+          value: {{ printf "http://%s:%v" (include "vulns.fullname" .) .Values.vulns.service.port | quote }}
+        - name: AGENTS
+          value: {{ .Values.agent.enabled | quote }}
+      command: ["/nodejs/bin/node", "-e"]
+      args:
+        - |
+          const base = process.env.BASE, auth = { authorization: "Bearer " + process.env.VULNS_ADMIN_TOKEN };
+          const check = (ok, msg) => { console.log((ok ? "ok   " : "FAIL ") + msg); if (!ok) process.exitCode = 1; };
+          const main = async () => {
+            check((await fetch(base + "/readyz")).ok, "vulns is ready");
+            const s = await (await fetch(base + "/api/v1/summary", { headers: auth })).json();
+            check(s.assets !== undefined, "the admin token is accepted");
+            const refused = await fetch(base + "/api/v1/assets", { headers: { authorization: "Bearer " + process.env.VULNS_INGEST_TOKEN } });
+            check(refused.status === 401, "the ingest token cannot read assets");
+            if (process.env.AGENTS === "true") {
+              let hosts = 0;
+              for (let i = 0; i < 60 && !hosts; i++) {
+                hosts = (await (await fetch(base + "/api/v1/summary", { headers: auth })).json()).assets.hosts;
+                if (!hosts) await new Promise((r) => setTimeout(r, 2000));
+              }
+              check(hosts > 0, `agents reported ${hosts} node(s)`);
+            }
+          };
+          main().catch((e) => { console.log("FAIL " + e); process.exitCode = 1; });
+{{- end }}

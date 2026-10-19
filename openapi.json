@@ -1,0 +1,2262 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "OpenAsy Vulnerabilities API",
+    "version": "0.1.0",
+    "summary": "OS package and container image vulnerabilities from SBOMs, ranked by exploitability.",
+    "description": "Every screen of vulns uses this API, and so can your scripts and CI (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nSend SBOMs (Syft JSON, CycloneDX JSON or SPDX JSON) with `VULNS_INGEST_TOKEN`; vulns-agent does this for hosts. Everything else takes `VULNS_ADMIN_TOKEN` until sign-in exists (ADR 0002). Use this release only for testing.",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This vulns"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Vulnerabilities",
+      "description": "Open vulnerabilities across every host and image, most urgent first."
+    },
+    {
+      "name": "Assets",
+      "description": "Hosts and container images, their SBOMs and findings."
+    },
+    {
+      "name": "SBOMs",
+      "description": "How hosts and images get here: vulns-agent, or CI."
+    },
+    {
+      "name": "Exceptions",
+      "description": "Accepted risk, with a reason and an expiry."
+    },
+    {
+      "name": "Vulnerability data",
+      "description": "The advisory data Grype matches against: download or import."
+    },
+    {
+      "name": "Agents",
+      "description": "vulns-agent on hosts."
+    },
+    {
+      "name": "Product",
+      "description": "Version and overview of this vulns."
+    }
+  ],
+  "paths": {
+    "/api/v1/vulnerabilities": {
+      "get": {
+        "operationId": "listVulnerabilities",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "summary": "List vulnerabilities",
+        "description": "Open findings grouped by vulnerability and package, with how many hosts and images have it. Known exploited first, then by risk.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`open` (default) or `excepted`: only findings covered by an active exception.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "excepted"
+              ],
+              "default": "open"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "description": "Comma-separated severities, such as `critical,high`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kev",
+            "in": "query",
+            "required": false,
+            "description": "Only vulnerabilities in the CISA KEV catalogue.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "fixable",
+            "in": "query",
+            "required": false,
+            "description": "Only those with a fixed version available.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "description": "Only hosts or only images.",
+            "schema": {
+              "$ref": "#/components/schemas/Kind"
+            }
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "description": "Only this asset id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Search vulnerability ids, aliases and package names.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` of the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "At most this many items, 1 to 500.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of vulnerabilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VulnerabilityList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/vulnerabilities/{id}": {
+      "get": {
+        "operationId": "getVulnerability",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "summary": "Get a vulnerability",
+        "description": "Every open finding of one vulnerability: which hosts and images, which package version, and the fix.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Such as CVE-2024-6387 or GHSA-xxxx-xxxx-xxxx.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The vulnerability and where it is.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VulnerabilityDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/summary": {
+      "get": {
+        "operationId": "getSummary",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Get the overview",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts for the overview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "operationId": "listAssets",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List hosts and images",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "description": "Only hosts or only images.",
+            "schema": {
+              "$ref": "#/components/schemas/Kind"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` of the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "At most this many items, 1 to 500.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of assets, hosts first, by name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}": {
+      "get": {
+        "operationId": "getAsset",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get a host or image",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Asset id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The asset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAsset",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Delete a host or image",
+        "description": "Deletes the asset, its SBOM, its findings and its exceptions. A host comes back with the next SBOM its agent sends.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Asset id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}/findings": {
+      "get": {
+        "operationId": "listAssetFindings",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List an asset's findings",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Asset id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`open` (default), `excepted` or `resolved`: no longer matched, kept for the retention period.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "excepted",
+                "resolved"
+              ],
+              "default": "open"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `nextCursor` of the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "At most this many items, 1 to 500.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of findings, most urgent first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindingList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}/sbom": {
+      "get": {
+        "operationId": "getAssetSbom",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Download an asset's SBOM",
+        "description": "The last SBOM received, exactly as it was sent. The `X-SBOM-Format` header names its format.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Asset id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The SBOM.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}/scan": {
+      "post": {
+        "operationId": "requestScan",
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Ask a host's agent to scan now",
+        "description": "The agent hears about it on its next heartbeat (every minute) and sends a new SBOM. Images are scanned when CI sends a new SBOM.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Asset id of a host.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Requested.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "const": "requested"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/sboms": {
+      "post": {
+        "operationId": "sendSbom",
+        "tags": [
+          "SBOMs"
+        ],
+        "summary": "Send an SBOM",
+        "description": "Adds or replaces the SBOM of a host or image and matches it. Findings that no longer match are resolved.\n\n```bash\nsyft ghcr.io/acme/app:1.4.2 -o syft-json | curl -sf -X POST -H \"Authorization: Bearer $VULNS_INGEST_TOKEN\" \\\n  -H 'content-type: application/json' --data-binary @- \\\n  \"https://vulns.example.com/api/v1/sboms?kind=image&name=ghcr.io/acme/app:1.4.2&wait=true\"\n```\n\nThe body may be gzipped (`Content-Encoding: gzip`), up to 128 MiB unpacked.",
+        "security": [
+          {
+            "ingestToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Kind"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "description": "Host name, or image reference such as `ghcr.io/acme/app:1.4.2`. The same kind and name update the same asset.",
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "name": "wait",
+            "in": "query",
+            "required": false,
+            "description": "Answer once matching is done (up to two minutes), so CI can act on the result.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Syft JSON, CycloneDX JSON or SPDX JSON.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matched; the asset already existed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Matched; a new asset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Stored and queued for matching. Poll the asset for `match.status`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/exceptions": {
+      "get": {
+        "operationId": "listExceptions",
+        "tags": [
+          "Exceptions"
+        ],
+        "summary": "List exceptions",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Every exception, soonest expiry first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExceptionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createException",
+        "tags": [
+          "Exceptions"
+        ],
+        "summary": "Accept a risk",
+        "description": "Hides a vulnerability on one asset, or on every asset, until it expires. It shows again after the expiry.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewException"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exception"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/exceptions/{id}": {
+      "delete": {
+        "operationId": "deleteException",
+        "tags": [
+          "Exceptions"
+        ],
+        "summary": "Remove an exception",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Exception id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed."
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/feed": {
+      "get": {
+        "operationId": "getFeed",
+        "tags": [
+          "Vulnerability data"
+        ],
+        "summary": "Get the vulnerability data status",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "importFeed",
+        "tags": [
+          "Vulnerability data"
+        ],
+        "summary": "Import vulnerability data",
+        "description": "For installs without internet access (ADR 0015). On a machine that has it, download the archive with `grype db download` (or from the URL in `grype db list`), then upload it:\n\n```bash\ncurl -sf -X PUT -H \"Authorization: Bearer $VULNS_ADMIN_TOKEN\" -H 'content-type: application/zstd' \\\n  --data-binary @vulnerability-db_v6.tar.zst https://vulns.example.com/api/v1/feed\n```\n\nEvery asset is matched again afterwards.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/zstd": {
+              "schema": {
+                "type": "string",
+                "contentMediaType": "application/zstd"
+              }
+            },
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Imported.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/feed/update": {
+      "post": {
+        "operationId": "updateFeed",
+        "tags": [
+          "Vulnerability data"
+        ],
+        "summary": "Download newer vulnerability data",
+        "description": "Starts a download from grype.anchore.io, or `VULNS_FEED_URL`. Nothing about this install is sent. Every asset is matched again when the data changed.",
+        "security": [
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/heartbeat": {
+      "post": {
+        "operationId": "agentHeartbeat",
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Report an agent",
+        "description": "Sent by vulns-agent every minute. The answer says whether to scan now.",
+        "security": [
+          {
+            "ingestToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Heartbeat"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatReply"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "operationId": "getVersion",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Get the version",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Product and version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "liveness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readiness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Readiness",
+        "description": "Ready while the database answers. `warnings` says when there is no vulnerability data yet; SBOMs are still accepted and matched once it arrives.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready to serve.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Prometheus metrics",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Metrics in the Prometheus text format.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "adminToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "`VULNS_ADMIN_TOKEN`, until sign-in exists (ADR 0002)."
+      },
+      "ingestToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "`VULNS_INGEST_TOKEN`: for vulns-agent and CI. It can send SBOMs and heartbeats, nothing else."
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "An error, as RFC 9457 Problem Details.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid-token",
+              "invalid-json",
+              "invalid-body",
+              "invalid-sbom",
+              "version-mismatch",
+              "not-found",
+              "conflict",
+              "not-configured",
+              "payload-too-large",
+              "internal-error"
+            ],
+            "description": "Stable; match on this."
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "Kind": {
+        "type": "string",
+        "enum": [
+          "host",
+          "image"
+        ]
+      },
+      "Severity": {
+        "type": "string",
+        "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "negligible",
+          "unknown"
+        ],
+        "description": "From the distribution's own advisory when there is one, otherwise from NVD or GitHub."
+      },
+      "SeverityCounts": {
+        "type": "object",
+        "required": [
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "negligible",
+          "unknown"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "critical": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "medium": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "low": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "negligible": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "required": [
+          "product",
+          "version"
+        ],
+        "properties": {
+          "product": {
+            "const": "vulns"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "distro",
+          "packages",
+          "sbom",
+          "match",
+          "open",
+          "knownExploited",
+          "fixable",
+          "createdAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "distro": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "debian 12.0"
+            ]
+          },
+          "packages": {
+            "type": "integer",
+            "description": "Packages in the last SBOM."
+          },
+          "sbom": {
+            "type": "object",
+            "required": [
+              "format",
+              "receivedAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "format": {
+                "type": "string",
+                "enum": [
+                  "syft-json",
+                  "cyclonedx-json",
+                  "spdx-json"
+                ]
+              },
+              "receivedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "match": {
+            "type": "object",
+            "required": [
+              "status",
+              "error",
+              "matchedAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "matching",
+                  "done",
+                  "failed"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "matchedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            }
+          },
+          "open": {
+            "$ref": "#/components/schemas/SeverityCounts",
+            "description": "Open findings by severity, without accepted exceptions."
+          },
+          "knownExploited": {
+            "type": "integer"
+          },
+          "fixable": {
+            "type": "integer",
+            "description": "Open findings with a fixed version available."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "agent": {
+            "description": "Hosts only: the vulns-agent that reports it, or null.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "version",
+                  "platform",
+                  "lastSeen",
+                  "lastScanAt",
+                  "lastError"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "version": {
+                    "type": "string"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "container",
+                      "kubernetes"
+                    ]
+                  },
+                  "lastSeen": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "lastScanAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "lastError": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "AssetList": {
+        "type": "object",
+        "required": [
+          "assets"
+        ],
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        }
+      },
+      "Finding": {
+        "type": "object",
+        "required": [
+          "vulnerability",
+          "aliases",
+          "severity",
+          "cvss",
+          "epss",
+          "epssPercentile",
+          "knownExploited",
+          "risk",
+          "package",
+          "fix",
+          "description",
+          "firstSeen",
+          "resolvedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "vulnerability": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "cvss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Highest CVSS base score known for it."
+          },
+          "epss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "EPSS: probability of exploitation in the next 30 days."
+          },
+          "epssPercentile": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "knownExploited": {
+            "type": "boolean",
+            "description": "Listed in the CISA Known Exploited Vulnerabilities catalogue."
+          },
+          "risk": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Grype's risk score, from severity, EPSS and KEV. Lists are ordered by known exploitation, then this."
+          },
+          "package": {
+            "type": "object",
+            "required": [
+              "name",
+              "source",
+              "version",
+              "type",
+              "purl",
+              "location"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source package it was built from, such as glibc for libc6."
+              },
+              "version": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "examples": [
+                  "deb",
+                  "rpm",
+                  "apk",
+                  "npm",
+                  "python",
+                  "go-module",
+                  "java-archive"
+                ]
+              },
+              "purl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "location": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Where the package was found, such as /var/lib/dpkg/status."
+              }
+            }
+          },
+          "fix": {
+            "type": "object",
+            "required": [
+              "state",
+              "version"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "fixed",
+                  "not-fixed",
+                  "wont-fix",
+                  "unknown"
+                ],
+                "description": "`fixed`: a fixed version exists. `not-fixed`: not yet. `wont-fix`: the distribution will not fix it in this release."
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "First fixed version, when there is one."
+              }
+            }
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "FindingList": {
+        "type": "object",
+        "required": [
+          "findings"
+        ],
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        }
+      },
+      "Vulnerability": {
+        "type": "object",
+        "required": [
+          "vulnerability",
+          "aliases",
+          "package",
+          "severity",
+          "cvss",
+          "epss",
+          "epssPercentile",
+          "knownExploited",
+          "kevDueDate",
+          "ransomware",
+          "risk",
+          "fix",
+          "description",
+          "hosts",
+          "images",
+          "firstSeen"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "vulnerability": {
+            "type": "string",
+            "examples": [
+              "CVE-2024-6387"
+            ]
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "package": {
+            "type": "object",
+            "required": [
+              "name",
+              "type",
+              "packages",
+              "versions"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Source package, such as glibc; the package itself when it has no separate source."
+              },
+              "type": {
+                "type": "string"
+              },
+              "packages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Installed packages built from it, such as libc6 and libc-bin."
+              },
+              "versions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Installed versions that have it."
+              }
+            }
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "cvss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Highest CVSS base score known for it."
+          },
+          "epss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "EPSS: probability of exploitation in the next 30 days."
+          },
+          "epssPercentile": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "knownExploited": {
+            "type": "boolean",
+            "description": "Listed in the CISA Known Exploited Vulnerabilities catalogue."
+          },
+          "risk": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Grype's risk score, from severity, EPSS and KEV. Lists are ordered by known exploitation, then this."
+          },
+          "kevDueDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "CISA's remediation due date for US federal agencies."
+          },
+          "ransomware": {
+            "type": "boolean",
+            "description": "CISA lists known use in ransomware campaigns."
+          },
+          "fix": {
+            "type": "object",
+            "required": [
+              "state",
+              "version"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "fixed",
+                  "not-fixed",
+                  "wont-fix",
+                  "unknown"
+                ],
+                "description": "`fixed`: a fixed version exists. `not-fixed`: not yet. `wont-fix`: the distribution will not fix it in this release."
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "First fixed version, when there is one."
+              }
+            }
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hosts": {
+            "type": "integer"
+          },
+          "images": {
+            "type": "integer"
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "VulnerabilityList": {
+        "type": "object",
+        "required": [
+          "vulnerabilities"
+        ],
+        "properties": {
+          "vulnerabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Vulnerability"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        }
+      },
+      "VulnerabilityDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "aliases",
+          "severity",
+          "cvss",
+          "epss",
+          "epssPercentile",
+          "knownExploited",
+          "kevDueDate",
+          "ransomware",
+          "risk",
+          "description",
+          "dataSource",
+          "affected"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "cvss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Highest CVSS base score known for it."
+          },
+          "epss": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "EPSS: probability of exploitation in the next 30 days."
+          },
+          "epssPercentile": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "knownExploited": {
+            "type": "boolean",
+            "description": "Listed in the CISA Known Exploited Vulnerabilities catalogue."
+          },
+          "risk": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Grype's risk score, from severity, EPSS and KEV. Lists are ordered by known exploitation, then this."
+          },
+          "kevDueDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ransomware": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dataSource": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The advisory this match came from."
+          },
+          "affected": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "asset",
+                "package",
+                "fix",
+                "excepted",
+                "firstSeen"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "asset": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "kind",
+                    "name"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "$ref": "#/components/schemas/Kind"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "package": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "source",
+                    "version",
+                    "type",
+                    "purl",
+                    "location"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "Source package it was built from, such as glibc for libc6."
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "examples": [
+                        "deb",
+                        "rpm",
+                        "apk",
+                        "npm",
+                        "python",
+                        "go-module",
+                        "java-archive"
+                      ]
+                    },
+                    "purl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "location": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Where the package was found, such as /var/lib/dpkg/status."
+                    }
+                  }
+                },
+                "fix": {
+                  "type": "object",
+                  "required": [
+                    "state",
+                    "version"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "fixed",
+                        "not-fixed",
+                        "wont-fix",
+                        "unknown"
+                      ],
+                      "description": "`fixed`: a fixed version exists. `not-fixed`: not yet. `wont-fix`: the distribution will not fix it in this release."
+                    },
+                    "version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "First fixed version, when there is one."
+                    }
+                  }
+                },
+                "excepted": {
+                  "type": "boolean"
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Feed": {
+        "type": "object",
+        "required": [
+          "schema",
+          "built",
+          "ageHours",
+          "updatedAt",
+          "checkedAt",
+          "updating",
+          "error"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Grype database schema.",
+            "examples": [
+              "v6.1.10"
+            ]
+          },
+          "built": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When this data was built; null when there is none yet."
+          },
+          "ageHours": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When this vulns last changed its data."
+          },
+          "checkedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When this vulns last checked for newer data."
+          },
+          "updating": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the last update failed."
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "assets",
+          "open",
+          "knownExploited",
+          "fixable",
+          "feed"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "type": "object",
+            "required": [
+              "hosts",
+              "images",
+              "failed"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "hosts": {
+                "type": "integer"
+              },
+              "images": {
+                "type": "integer"
+              },
+              "failed": {
+                "type": "integer",
+                "description": "Assets whose last match failed."
+              }
+            }
+          },
+          "open": {
+            "$ref": "#/components/schemas/SeverityCounts",
+            "description": "Open vulnerabilities (by vulnerability and package) by severity."
+          },
+          "knownExploited": {
+            "type": "integer"
+          },
+          "fixable": {
+            "type": "integer"
+          },
+          "feed": {
+            "$ref": "#/components/schemas/Feed"
+          }
+        }
+      },
+      "Exception": {
+        "type": "object",
+        "required": [
+          "id",
+          "vulnerability",
+          "asset",
+          "reason",
+          "createdAt",
+          "expiresAt",
+          "active"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "vulnerability": {
+            "type": "string"
+          },
+          "asset": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "kind",
+                  "name"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "$ref": "#/components/schemas/Kind"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            ],
+            "description": "Null when it covers every asset."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NewException": {
+        "type": "object",
+        "required": [
+          "vulnerability",
+          "reason",
+          "expiresAt"
+        ],
+        "properties": {
+          "vulnerability": {
+            "type": "string",
+            "examples": [
+              "CVE-2024-6387"
+            ]
+          },
+          "assetId": {
+            "type": "string",
+            "description": "Omit to cover every asset."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Within the next 366 days: an accepted risk is reviewed at least once a year."
+          }
+        }
+      },
+      "ExceptionList": {
+        "type": "object",
+        "required": [
+          "exceptions"
+        ],
+        "properties": {
+          "exceptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exception"
+            }
+          }
+        }
+      },
+      "Heartbeat": {
+        "type": "object",
+        "required": [
+          "id",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.-]{0,62}$",
+            "description": "Host name; SBOMs from this agent use it as the asset name."
+          },
+          "version": {
+            "type": "string",
+            "description": "Must equal this vulns's version (ADR 0019)."
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "container",
+              "kubernetes"
+            ],
+            "default": "container",
+            "description": "kubernetes when the Helm chart runs the agent on a node."
+          },
+          "lastScanAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        }
+      },
+      "HeartbeatReply": {
+        "type": "object",
+        "required": [
+          "status",
+          "scanNow"
+        ],
+        "properties": {
+          "status": {
+            "const": "accepted"
+          },
+          "scanNow": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

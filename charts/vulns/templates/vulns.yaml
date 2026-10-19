@@ -1,0 +1,177 @@
+{{- if .Values.vulns.enabled }}
+{{- $v := .Values.vulns }}
+{{- if not $v.persistence.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "vulns.fullname" . }}-data
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+  annotations:
+    # Deleting the release keeps the data; delete the claim yourself to remove it (ADR 0015).
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $v.persistence.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $v.persistence.size }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vulns.fullname" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+    {{- include "vulns.selector" . | nindent 4 }}
+spec:
+  # One process owns the SQLite file (ADR 0011, 0018): never two pods, not even during an upgrade.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "vulns.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vulns.labels" . | nindent 8 }}
+        {{- include "vulns.selector" . | nindent 8 }}
+      annotations:
+        # Restart when the tokens change.
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with $v.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: vulns
+          image: {{ include "vulns.image" (dict "image" $v.image "appVersion" .Chart.AppVersion) }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          securityContext:
+            {{- include "vulns.containerSecurity" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - secretRef:
+                name: {{ include "vulns.secretName" . }}
+          env:
+            - name: VULNS_METRICS_PORT
+              value: "9090"
+            - name: VULNS_FEED_UPDATE_HOURS
+              value: {{ $v.feedUpdateHours | quote }}
+            - name: VULNS_RETENTION_DAYS
+              value: {{ $v.retentionDays | quote }}
+            - name: VULNS_HEADLESS
+              value: {{ $v.headless | quote }}
+            {{- with $v.feedUrl }}
+            - name: VULNS_FEED_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with $v.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ default (printf "%s-data" (include "vulns.fullname" .)) $v.persistence.existingClaim }}
+      {{- with $v.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $v.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $v.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vulns.fullname" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+    {{- include "vulns.selector" . | nindent 4 }}
+spec:
+  type: {{ $v.service.type }}
+  selector:
+    {{- include "vulns.selector" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $v.service.port }}
+      targetPort: http
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+{{- if $v.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "vulns.fullname" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+  {{- with $v.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with $v.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if $v.ingress.tlsSecretName }}
+  tls:
+    - hosts: [{{ $v.ingress.host | quote }}]
+      secretName: {{ $v.ingress.tlsSecretName }}
+  {{- end }}
+  rules:
+    - host: {{ $v.ingress.host | quote }}
+      http:
+        paths:
+          # /metrics is on its own port, which the ingress does not reach (ADR 0026).
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "vulns.fullname" . }}
+                port:
+                  name: http
+{{- end }}
+{{- end }}

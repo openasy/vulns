@@ -1,0 +1,108 @@
+{{- if .Values.agent.enabled }}
+{{- $a := .Values.agent }}
+{{- if and (not .Values.vulns.enabled) (not $a.url) }}
+{{- fail "agent.url is required when vulns.enabled is false: the address of the vulns the agents report to" }}
+{{- end }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "vulns.agentName" . }}
+  labels:
+    {{- include "vulns.labels" . | nindent 4 }}
+    {{- include "vulns.agentSelector" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "vulns.agentSelector" . | nindent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "vulns.labels" . | nindent 8 }}
+        {{- include "vulns.agentSelector" . | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with $a.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      # The agent talks only to vulns (ADR 0023); it needs nothing from the Kubernetes API.
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: vulns-agent
+          image: {{ include "vulns.image" (dict "image" $a.image "appVersion" .Chart.AppVersion) }}
+          imagePullPolicy: {{ $a.image.pullPolicy }}
+          # Unprivileged and without capabilities (ADR 0022): package databases on the node are world-readable.
+          securityContext:
+            {{- include "vulns.containerSecurity" . | nindent 12 }}
+          ports:
+            - name: metrics
+              containerPort: 9100
+          env:
+            - name: VULNS_URL
+              value: {{ default (printf "http://%s:%v" (include "vulns.fullname" .) .Values.vulns.service.port) $a.url | quote }}
+            - name: VULNS_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vulns.secretName" . }}
+                  key: VULNS_INGEST_TOKEN
+            # The node's name is the host's name in vulns.
+            - name: VULNS_AGENT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # Shown in vulns, so a host is known to be a Kubernetes node.
+            - name: VULNS_AGENT_PLATFORM
+              value: kubernetes
+            - name: SCAN_HOURS
+              value: {{ $a.scanHours | quote }}
+            - name: HEARTBEAT_SECONDS
+              value: {{ $a.heartbeatSeconds | quote }}
+            {{- with $a.scanExclude }}
+            - name: SCAN_EXCLUDE
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with $a.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: host
+              mountPath: /host
+              readOnly: true
+              # Mounts below / (for example /var/lib/kubelet volumes) are read-only too where the runtime supports it.
+              recursiveReadOnly: IfPossible
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            periodSeconds: 30
+          resources:
+            {{- toYaml $a.resources | nindent 12 }}
+      volumes:
+        - name: host
+          hostPath:
+            path: /
+            type: Directory
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+      {{- with $a.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $a.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

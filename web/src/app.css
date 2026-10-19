@@ -1,0 +1,31 @@
+/* The few layouts this product needs that @openasy/ui's prebuilt styles do not include. Colours stay in the library's tokens. */
+
+/* One line of a long description in a table cell; the full text is in the title. */
+.vulns-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+
+/* Package names and versions break anywhere rather than widening their column. */
+.vulns-wrap {
+  overflow-wrap: anywhere;
+}
+
+/* Label and value pairs. */
+.vulns-pairs {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+  margin: 0;
+}
+
+.vulns-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

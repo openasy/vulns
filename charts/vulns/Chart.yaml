@@ -1,0 +1,19 @@
+apiVersion: v2
+name: vulns
+description: OpenAsy Vulnerabilities. OS package and container image vulnerabilities from SBOMs, ranked by exploitability, with vulns-agent on every node.
+type: application
+# Same version as the product and its agent (ADR 0019); the release workflow refuses a mismatch.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.33.0-0"
+home: https://openasy.github.io/products/vulnerabilities
+sources:
+  - https://github.com/openasy/vulns
+  - https://github.com/openasy/vulns-agent
+icon: https://openasy.github.io/logo-mark-512.png
+keywords: [vulnerabilities, cve, sbom, grype, syft, kev, epss]
+maintainers:
+  - name: OpenAsy
+    url: https://github.com/openasy
+annotations:
+  artifacthub.io/license: AGPL-3.0-only
