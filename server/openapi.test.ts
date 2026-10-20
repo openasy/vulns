@@ -74,7 +74,9 @@ describe("openapi.json", () => {
   it("is served with the running version", async () => {
     const served = (await (await fetch(`${base}/api/openapi.json`)).json()) as Spec;
     expect(served.info.version).toBe(version);
-    expect(Object.keys(served.paths)).toEqual(Object.keys(spec.paths));
+    // vulns's own operations, then sign-in from @openasy/auth (tested against its description in that package).
+    expect(Object.keys(served.paths).filter((p) => !p.startsWith("/api/v1/auth/"))).toEqual(Object.keys(spec.paths));
+    expect(served.paths["/api/v1/auth/login"]).toBeDefined();
   });
 
   it("serves the API reference at /api/docs/", async () => {

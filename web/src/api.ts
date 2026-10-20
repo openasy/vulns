@@ -109,29 +109,18 @@ export interface Exception {
 }
 
 export class Unauthorized extends Error {}
+/** The signed-in owner or admin has no second factor yet; the sign-in gate asks for one. */
+export class MfaSetupRequired extends Error {}
 export class ApiError extends Error {}
 
-// Until sign-in exists (ADR 0002), the UI uses VULNS_ADMIN_TOKEN, kept only for this browser tab.
-const TOKEN_KEY = "vulns-admin-token";
-export const readToken = () => {
-  try {
-    return sessionStorage.getItem(TOKEN_KEY) ?? "";
-  } catch {
-    return "";
+// The session is an HttpOnly cookie set by sign-in (@openasy/auth); the browser sends it, nothing is stored here.
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(path, { ...init, credentials: "same-origin", headers: { ...(init.body ? { "content-type": "application/json" } : {}), ...init.headers } });
+  if (!res.ok) {
+    const problem = (await res.json().catch(() => ({}))) as { code?: string; detail?: string };
+    if (res.status === 401) throw new Unauthorized(problem.detail);
+    if (problem.code === "mfa-setup-required") throw new MfaSetupRequired(problem.detail);
+    throw new ApiError(problem.detail ?? `${path}: ${res.status}`);
   }
-};
-export const saveToken = (t: string) => {
-  try {
-    if (t) sessionStorage.setItem(TOKEN_KEY, t);
-    else sessionStorage.removeItem(TOKEN_KEY);
-  } catch {
-    // Storage blocked: the token lasts until the page reloads.
-  }
-};
-
-export async function api<T>(path: string, token: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { ...(token && { authorization: `Bearer ${token}` }), ...(init.body ? { "content-type": "application/json" } : {}), ...init.headers } });
-  if (res.status === 401 || res.status === 503) throw new Unauthorized(((await res.json().catch(() => ({}))) as { detail?: string }).detail);
-  if (!res.ok) throw new ApiError(((await res.json().catch(() => ({}))) as { detail?: string }).detail ?? `${path}: ${res.status}`);
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

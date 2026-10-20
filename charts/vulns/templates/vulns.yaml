@@ -75,6 +75,8 @@ spec:
             - secretRef:
                 name: {{ include "vulns.secretName" . }}
           env:
+            - name: VULNS_PUBLIC_URL
+              value: {{ include "vulns.url" . | quote }}
             - name: VULNS_METRICS_PORT
               value: "9090"
             - name: VULNS_FEED_UPDATE_HOURS
@@ -93,6 +95,10 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: kek
+              mountPath: /run/secrets/openasy-kek
+              subPath: openasy-kek
+              readOnly: true
           startupProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 2
@@ -106,6 +112,14 @@ spec:
           resources:
             {{- toYaml $v.resources | nindent 12 }}
       volumes:
+        - name: kek
+          secret:
+            secretName: {{ include "vulns.secretName" . }}
+            # A Secret you manage may not have the key; vulns then warns that secrets are stored unencrypted.
+            optional: true
+            items:
+              - key: openasy-kek
+                path: openasy-kek
         - name: data
           persistentVolumeClaim:
             claimName: {{ default (printf "%s-data" (include "vulns.fullname" .)) $v.persistence.existingClaim }}

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -97,23 +98,121 @@ describe("metrics on their own port", () => {
 });
 
 describe("tokens", () => {
-  it("refuses management calls without the admin token, and the ingest token is not enough", async () => {
-    expect((await fetch(`${app.base}/api/v1/assets`)).status).toBe(401);
+  it("refuses management calls without sign-in, and the ingest token is not enough", async () => {
+    const anonymous = await fetch(`${app.base}/api/v1/assets`);
+    expect(anonymous.status).toBe(401);
+    expect(await anonymous.json()).toMatchObject({ code: "unauthenticated" });
     expect((await app.ingest("/api/v1/assets")).status).toBe(401);
   });
 
-  it("accepts SBOMs with the ingest token or the admin token", async () => {
+  it("accepts SBOMs with the ingest token or the deprecated admin token", async () => {
     expect((await upload("image", "app:1", sbom("perl-base"), { token: "nope" })).status).toBe(401);
     expect((await upload("image", "app:1", sbom("perl-base"))).status).toBe(201);
     expect((await upload("image", "app:2", sbom("perl-base"), { token: "test-admin-token" })).status).toBe(201);
   });
 
-  it("says which variable to set when the admin token is missing", async () => {
-    const open = await startApp({ version: "1.2.3", adminToken: undefined });
-    const res = await fetch(`${open.base}/api/v1/assets`);
+  it("says which variable to set when the ingest token is missing", async () => {
+    const open = await startApp({ version: "1.2.3", ingestToken: undefined, adminToken: undefined });
+    const res = await fetch(`${open.base}/api/v1/sboms?kind=image&name=x`, { method: "POST", body: sbom() });
     expect(res.status).toBe(503);
-    expect(((await res.json()) as { detail: string }).detail).toContain("VULNS_ADMIN_TOKEN");
+    expect(((await res.json()) as { detail: string }).detail).toContain("VULNS_INGEST_TOKEN");
     await open.close();
+  });
+});
+
+/** A browser: keeps cookies and sends the Origin header of the page. */
+function browser(base: string) {
+  const jar = new Map<string, string>();
+  return async (path: string, init: { method?: string; body?: unknown; origin?: string } = {}) => {
+    const res = await fetch(base + path, {
+      method: init.method ?? (init.body === undefined ? "GET" : "POST"),
+      headers: { origin: init.origin ?? base, cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; "), ...(init.body !== undefined && { "content-type": "application/json" }) },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    });
+    for (const c of res.headers.getSetCookie()) {
+      const [pair] = c.split(";");
+      const i = pair!.indexOf("=");
+      jar.set(pair!.slice(0, i), pair!.slice(i + 1));
+    }
+    return res;
+  };
+}
+
+/** The current RFC 6238 code for a base32 secret. */
+function totpNow(secret: string) {
+  const bits = [...secret].map((c) => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".indexOf(c).toString(2).padStart(5, "0")).join("");
+  const key = Buffer.from(bits.match(/.{8}/g)!.map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
+  const mac = createHmac("sha1", key).update(counter).digest();
+  return String((mac.readUInt32BE(mac[19]! & 15) & 0x7fffffff) % 1_000_000).padStart(6, "0");
+}
+
+describe("sign-in and roles", () => {
+  const PASSWORD = "correct horse battery staple";
+
+  async function owner() {
+    const b = browser(app.base);
+    const token = new URL(app.auth.setupLink()!).searchParams.get("setup");
+    expect((await b("/api/v1/auth/setup", { body: { token, name: "Olivia", email: "owner@example.com", password: PASSWORD } })).status).toBe(200);
+    return b;
+  }
+
+  async function member(admin: ReturnType<typeof browser>, email: string, role: string) {
+    const { link } = (await (await admin("/api/v1/auth/members", { body: { email, role } })).json()) as { link: string };
+    const b = browser(app.base);
+    expect((await b(`/api/v1/auth/links/${new URL(link).searchParams.get("link")}`, { body: { password: PASSWORD } })).status).toBe(200);
+    return b;
+  }
+
+  it("makes the owner set up a second factor before anything else", async () => {
+    const b = await owner();
+    const res = await b("/api/v1/summary");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "mfa-setup-required" });
+    const { secret } = (await (await b("/api/v1/auth/me/totp", { body: {} })).json()) as { secret: string };
+    expect((await b("/api/v1/auth/me/totp/confirm", { body: { code: totpNow(secret) } })).status).toBe(200);
+    expect((await b("/api/v1/summary")).status).toBe(200);
+  });
+
+  it("gives viewers, editors and admins what their role allows", async () => {
+    const o = await owner();
+    const { secret } = (await (await o("/api/v1/auth/me/totp", { body: {} })).json()) as { secret: string };
+    await o("/api/v1/auth/me/totp/confirm", { body: { code: totpNow(secret) } });
+    await upload("host", "web-1", sbom(...ALL_PACKAGES));
+    const assetId = ((await get<{ assets: Array<{ id: string }> }>("/api/v1/assets")).assets[0]!).id;
+    const exception = { vulnerability: "CVE-2023-4911", reason: "not reachable", expiresAt: new Date(Date.now() + 86_400_000).toISOString() };
+
+    const viewer = await member(o, "vic@example.com", "viewer");
+    expect((await viewer("/api/v1/vulnerabilities")).status).toBe(200);
+    expect((await viewer(`/api/v1/assets/${assetId}/sbom`)).status).toBe(200);
+    expect((await viewer("/api/v1/exceptions", { body: exception })).status).toBe(403);
+    expect((await viewer(`/api/v1/assets/${assetId}/scan`, { body: {} })).status).toBe(403);
+
+    const editor = await member(o, "ed@example.com", "editor");
+    expect((await editor("/api/v1/exceptions", { body: exception })).status).toBe(201);
+    expect((await editor(`/api/v1/assets/${assetId}`, { method: "DELETE" })).status).toBe(403);
+    expect((await editor("/api/v1/feed/update", { body: {} })).status).toBe(403);
+
+    expect((await o(`/api/v1/assets/${assetId}`, { method: "DELETE" })).status).toBe(204);
+  });
+
+  it("refuses changes sent from another site with the session cookie", async () => {
+    const o = await owner();
+    const { secret } = (await (await o("/api/v1/auth/me/totp", { body: {} })).json()) as { secret: string };
+    await o("/api/v1/auth/me/totp/confirm", { body: { code: totpNow(secret) } });
+    const res = await o("/api/v1/feed/update", { body: {}, origin: "https://evil.example" });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "cross-site" });
+  });
+
+  it("lets CI send SBOMs with an API token that has the editor role", async () => {
+    const o = await owner();
+    const { secret } = (await (await o("/api/v1/auth/me/totp", { body: {} })).json()) as { secret: string };
+    await o("/api/v1/auth/me/totp/confirm", { body: { code: totpNow(secret) } });
+    const make = async (role: string) => ((await (await o("/api/v1/auth/tokens", { body: { name: `ci-${role}`, role } })).json()) as { token: string }).token;
+    expect((await upload("image", "app:ci", sbom("perl-base"), { token: await make("editor") })).status).toBe(201);
+    expect((await upload("image", "app:ci2", sbom("perl-base"), { token: await make("viewer") })).status).toBe(403);
   });
 });
 

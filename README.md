@@ -12,8 +12,8 @@ The [OpenAsy](https://github.com/openasy) Vulnerabilities product: OS package an
 ranked by exploitability. API, web UI and matching in one container with one version. Hosts report through the
 separate [vulns-agent](https://github.com/openasy/vulns-agent); images are sent from CI.
 
-> **For testing only.** This release has no sign-in yet (ADR 0002): the management API uses one shared
-> `VULNS_ADMIN_TOKEN`. Sign-in comes in the next phase.
+People sign in with an account (password plus authenticator app or passkey), with a passkey alone, or through your
+identity provider (OIDC). Each person has a role in this vulns; scripts and CI use API tokens. See [Sign-in](#sign-in).
 
 ## How it works
 
@@ -39,20 +39,27 @@ Why Grype and Syft, and not Vuls: see [Engine](#engine).
 ## Run
 
 ```bash
-export VULNS_ADMIN_TOKEN=$(openssl rand -hex 32) VULNS_INGEST_TOKEN=$(openssl rand -hex 32)
+export VULNS_INGEST_TOKEN=$(openssl rand -hex 32)
+openssl rand -hex 32 > openasy-kek
 docker compose up -d
+docker compose logs vulns | grep 'no owner yet'
 ```
 
 [`compose.yaml`](./compose.yaml) starts `ghcr.io/openasy/vulns` and a `ghcr.io/openasy/vulns-agent` for this host.
-The UI and API are on http://127.0.0.1:8080; the API reference with *Try it out* is at http://127.0.0.1:8080/api/docs/.
+Open the link from the log once to create the owner account; there is no default password (ADR 0013). The UI and API
+are on http://localhost:8080; the API reference with *Try it out* is at http://localhost:8080/api/docs/.
 On first start vulns downloads the vulnerability data (about 200 MB, 3 GB unpacked on the volume): give `/data` at
 least 8 GB. SBOMs sent before it arrives are kept and matched as soon as it does.
 
 | Variable | Default | |
 | --- | --- | --- |
 | `PORT` | `8080` | HTTP port |
-| `VULNS_ADMIN_TOKEN` | | Bearer token for the management API and UI; everything is refused without it |
+| `VULNS_PUBLIC_URL` | `http://localhost:8080` | The address people open, with `https://` behind your TLS proxy. Cookies, passkeys and OIDC redirects use it |
 | `VULNS_INGEST_TOKEN` | | Token for vulns-agent and CI. It can send SBOMs and heartbeats, nothing else |
+| `VULNS_SECRETS_KEY_FILE` | `/run/secrets/openasy-kek` | 32-byte key that encrypts secrets in the database (ADR 0021). Without it vulns warns and stores them unencrypted |
+| `VULNS_PASSWORD_SIGN_IN` | `true` | `false` when everyone signs in through OIDC |
+| `VULNS_OIDC_*` | | Sign-in through your identity provider, see [Sign-in](#sign-in) |
+| `VULNS_ADMIN_TOKEN` | | Deprecated: one shared admin token without an expiry, for scripts from before sign-in. Use an API token |
 | `VULNS_FEED_UPDATE_HOURS` | `24` | How often to download newer vulnerability data; `0` turns downloads off |
 | `VULNS_FEED_URL` | Grype's | A mirror of `https://grype.anchore.io/databases` |
 | `VULNS_RETENTION_DAYS` | `90` | Resolved findings and expired exceptions are deleted after this |
@@ -64,6 +71,34 @@ least 8 GB. SBOMs sent before it arrives are kept and matched as soon as it does
 
 The container runs as non-root with a read-only root filesystem, no capabilities and `no-new-privileges`; everything it
 writes goes to `/data`.
+
+### Sign-in
+
+Sign-in comes from [@openasy/auth](https://github.com/openasy/auth), the same in every OpenAsy product (ADR 0002).
+
+- **Roles** (ADR 0003): viewers see everything; editors also accept risks and request scans; admins also delete
+  assets, manage the vulnerability data, members and API tokens; owners also manage owners. Owners and admins who sign
+  in with a password must add an authenticator app or a passkey.
+- **Members**: admins invite people under Settings → Members. There is no email yet, so the admin sends the one-time
+  link. Forgotten passwords work the same way: the admin creates a new link.
+- **API tokens**: Settings → API tokens. One role each, an expiry within a year, the secret shown once. Send it as
+  `Authorization: Bearer oa_vulns_...`. A token with the editor role can also send SBOMs from CI.
+- **OIDC** (Entra ID, Okta, Google, Keycloak, Authentik, Zitadel...): register vulns as a confidential client with the
+  redirect URI `<VULNS_PUBLIC_URL>/api/v1/auth/oidc/sso/callback`, then set:
+
+  | Variable | |
+  | --- | --- |
+  | `VULNS_OIDC_ISSUER`, `VULNS_OIDC_CLIENT_ID`, `VULNS_OIDC_CLIENT_SECRET` | Required to turn it on |
+  | `VULNS_OIDC_NAME` | On the button: "Continue with ...". Default `SSO` |
+  | `VULNS_OIDC_SCOPES` | Default `openid email profile`; add the scope that carries groups |
+  | `VULNS_OIDC_GROUPS_CLAIM` | Default `groups` |
+  | `VULNS_OIDC_ROLE_MAPPING` | `vulns-admins=admin,staff=viewer`: the role follows the groups on every sign-in |
+  | `VULNS_OIDC_DEFAULT_ROLE` | Role for people nobody invited. Unset: only invited people and mapped groups get in |
+  | `VULNS_OIDC_ALLOWED_DOMAINS` | Comma-separated email domains, for providers anyone can join (Google) |
+
+  An existing member is linked by the email the provider says it has verified. People from the provider use its MFA.
+
+SAML 2.0, LDAP and trusted proxy headers are planned.
 
 ### Kubernetes
 
@@ -126,7 +161,7 @@ Set `VULNS_FEED_UPDATE_HOURS=0`. On a machine with access, download the data wit
 that `grype db list` prints) and upload it; every asset is matched again (ADR 0015):
 
 ```bash
-curl -sf -X PUT -H "Authorization: Bearer $VULNS_ADMIN_TOKEN" -H 'content-type: application/zstd' \
+curl -sf -X PUT -H "Authorization: Bearer $VULNS_API_TOKEN" -H 'content-type: application/zstd' \
   --data-binary @vulnerability-db.tar.zst https://vulns.example.com/api/v1/feed
 ```
 

@@ -4,18 +4,19 @@ Nodes appear under Hosts there, marked as Kubernetes nodes, within a minute.
 
 The namespace must allow hostPath volumes (Pod Security "privileged"): the agent reads each node's / read-only.
 {{- else }}
-OpenAsy Vulnerabilities {{ .Chart.AppVersion }} is starting. This release has no sign-in yet: use it only for testing.
+OpenAsy Vulnerabilities {{ .Chart.AppVersion }} is starting.
 
 1. Open the UI and API:
 {{- if .Values.vulns.ingress.enabled }}
      https://{{ .Values.vulns.ingress.host }}
 {{- else }}
      kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "vulns.fullname" . }} 8080:{{ .Values.vulns.service.port }}
-     open http://127.0.0.1:8080
+     open http://localhost:8080
 {{- end }}
 
-2. Sign in with the admin token:
-     kubectl -n {{ .Release.Namespace }} get secret {{ include "vulns.secretName" . }} -o jsonpath='{.data.VULNS_ADMIN_TOKEN}' | base64 -d; echo
+2. Create the owner account with the one-time link vulns prints on its first start:
+     kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "vulns.fullname" . }} | grep 'no owner yet'
+   Restarting vulns prints a new link until the owner exists.
 
 3. The first start downloads the vulnerability data (about 200 MB, 3 GB unpacked).
 {{- if .Values.agent.enabled }} Every node is scanned by vulns-agent

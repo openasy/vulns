@@ -1,11 +1,12 @@
 # Vulnerabilities: the product (API, web UI and Grype) plus vulns-agent for this host.
 # Run one vulns-agent on every other host you want covered; send image SBOMs from CI (see README).
 #
-#   export VULNS_ADMIN_TOKEN=$(openssl rand -hex 32) VULNS_INGEST_TOKEN=$(openssl rand -hex 32)
+#   export VULNS_INGEST_TOKEN=$(openssl rand -hex 32)
+#   openssl rand -hex 32 > openasy-kek   # encrypts secrets in the database (ADR 0021); keep it with your backups
 #   docker compose up -d
+#   docker compose logs vulns | grep 'no owner yet'   # the one-time link that creates the owner account
 #
 # The first start downloads about 200 MB of vulnerability data (3 GB unpacked on the volume).
-# This release has no sign-in yet: use it only for testing.
 services:
   vulns:
     image: ghcr.io/openasy/vulns:0.1.0
@@ -17,9 +18,17 @@ services:
       - "127.0.0.1:8080:8080"   # UI and API; put a TLS proxy in front to reach it from elsewhere
     volumes:
       - vulns-data:/data   # SQLite database, SBOMs and the vulnerability data
+    secrets:
+      - openasy-kek   # mounted at /run/secrets/openasy-kek
     environment:
-      VULNS_ADMIN_TOKEN: ${VULNS_ADMIN_TOKEN:?set VULNS_ADMIN_TOKEN}
+      # The address people open vulns at; with a TLS proxy in front, its https:// URL.
+      VULNS_PUBLIC_URL: ${VULNS_PUBLIC_URL:-http://localhost:8080}
       VULNS_INGEST_TOKEN: ${VULNS_INGEST_TOKEN:?set VULNS_INGEST_TOKEN}
+      # Sign in with your identity provider (OIDC), see the README:
+      # VULNS_OIDC_ISSUER: https://login.example.com
+      # VULNS_OIDC_CLIENT_ID: vulns
+      # VULNS_OIDC_CLIENT_SECRET: ${VULNS_OIDC_CLIENT_SECRET}
+      # VULNS_OIDC_ROLE_MAPPING: vulns-admins=admin,staff=viewer
       # VULNS_FEED_UPDATE_HOURS: "0"   # air-gapped: no downloads, import the data with PUT /api/v1/feed
 
   vulns-agent:
@@ -40,3 +49,7 @@ services:
 
 volumes:
   vulns-data:
+
+secrets:
+  openasy-kek:
+    file: ./openasy-kek

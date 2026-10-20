@@ -55,3 +55,11 @@ runAsNonRoot: true
 capabilities:
   drop: [ALL]
 {{- end -}}
+
+{{/* The address people open vulns at: cookies, passkeys and OIDC redirects use it. */}}
+{{- define "vulns.url" -}}
+{{- if .Values.vulns.url }}{{ trimSuffix "/" .Values.vulns.url }}
+{{- else if .Values.vulns.ingress.enabled }}https://{{ .Values.vulns.ingress.host }}
+{{- else }}http://localhost:8080
+{{- end }}
+{{- end }}

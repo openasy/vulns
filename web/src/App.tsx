@@ -25,12 +25,12 @@ import {
   type Column,
   type Severity as UiSeverity,
 } from "@openasy/ui";
-import { Boxes, Download, Play, RefreshCw, Server, Settings2, ShieldOff, Trash2, TriangleAlert, X } from "lucide-react";
+import { AccountSettings, AuthGate, MembersSettings, TokensSettings, useAuth } from "@openasy/auth/react";
+import { Boxes, Download, KeyRound, LogOut, Play, RefreshCw, Server, Settings2, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   api,
-  readToken,
-  saveToken,
+  MfaSetupRequired,
   Unauthorized,
   type Asset,
   type Counts,
@@ -57,51 +57,33 @@ function ago(iso: string | null | undefined): string {
   return `${Math.round(s / 86_400)} d ago`;
 }
 
-type Route = { page: "findings" | "hosts" | "images" | "exceptions" | "setup" } | { page: "asset"; id: string };
+const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "tokens"] as const;
+type Route = { page: "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
 function parseRoute(hash: string): Route {
   const [page, id] = hash.replace(/^#\/?/, "").split("/");
   if (page === "assets" && id) return { page: "asset", id: decodeURIComponent(id) };
-  if (page === "hosts" || page === "images" || page === "exceptions" || page === "setup") return { page };
+  if ((PAGES as readonly string[]).includes(page ?? "")) return { page: page as (typeof PAGES)[number] };
   return { page: "findings" };
 }
 const go = (hash: string) => (window.location.hash = hash);
 
-/** Data loading with the token; an expired or wrong token sends the user back to the token form. */
-function useApi(token: string, onUnauthorized: (msg?: string) => void) {
+/** Data loading with the session; when it ends, the sign-in screen comes back. */
+function useApi() {
+  const { expired, refresh } = useAuth();
   return useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {
       try {
-        return await api<T>(path, token, init);
+        return await api<T>(path, init);
       } catch (err) {
-        if (err instanceof Unauthorized) onUnauthorized(err.message);
+        if (err instanceof Unauthorized) expired();
+        if (err instanceof MfaSetupRequired) void refresh();
         throw err;
       }
     },
-    [token, onUnauthorized],
+    [expired, refresh],
   );
 }
 type Call = ReturnType<typeof useApi>;
-
-function TokenForm({ error, onToken }: { error?: string; onToken: (t: string) => void }) {
-  const [value, setValue] = useState("");
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    onToken(value.trim());
-  };
-  return (
-    <Panel title="Admin token">
-      <form onSubmit={submit} className="flex max-w-md flex-col gap-3">
-        <p className="m-0 text-sm text-fg-muted">Sign-in is not built yet. Paste the VULNS_ADMIN_TOKEN set on vulns; it is kept only in this tab.</p>
-        <TextField label="VULNS_ADMIN_TOKEN" type="password" autoComplete="off" mono value={value} onChange={(e) => setValue(e.target.value)} error={error} />
-        <div>
-          <Button type="submit" variant="primary" disabled={!value.trim()}>
-            Continue
-          </Button>
-        </div>
-      </form>
-    </Panel>
-  );
-}
 
 const SEV4 = ["critical", "high", "medium", "low"] as const;
 
@@ -163,6 +145,7 @@ const rowId = (v: Vulnerability) => `${v.vulnerability}|${v.package.type}|${v.pa
 type Tab = "open" | "excepted";
 
 function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; onClose: () => void; onChanged: () => void }) {
+  const { can } = useAuth();
   const [detail, setDetail] = useState<VulnerabilityDetail>();
   const [days, setDays] = useState("90");
   const [reason, setReason] = useState("");
@@ -231,7 +214,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
               ))}
             </ul>
           </div>
-          <form onSubmit={accept} className="flex flex-col gap-2 border-t border-line pt-3">
+          {can("editor") && <form onSubmit={accept} className="flex flex-col gap-2 border-t border-line pt-3">
             <span className="text-2xs font-medium tracking-wider text-fg-muted uppercase">Accept the risk</span>
             <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} hint="Why it is acceptable, for the next review." error={error} />
             <div className="grid grid-cols-2 gap-2">
@@ -258,7 +241,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
                 Accept risk
               </Button>
             </div>
-          </form>
+          </form>}
         </div>
       )}
     </Panel>
@@ -550,6 +533,7 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
 type FindingTab = "open" | "excepted" | "resolved";
 
 function AssetPage({ call, id }: { call: Call; id: string }) {
+  const { can } = useAuth();
   const [asset, setAsset] = useState<Asset | null>();
   const [tab, setTab] = useState<FindingTab>("open");
   const [rows, setRows] = useState<Finding[]>();
@@ -568,7 +552,7 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
 
   const scan = () => call(`/api/v1/assets/${id}/scan`, { method: "POST" }).then(() => setNote("The agent scans on its next heartbeat, within a minute."), (e: Error) => setNote(e.message));
   const download = async () => {
-    const res = await fetch(`/api/v1/assets/${id}/sbom`, { headers: { authorization: `Bearer ${readToken()}` } });
+    const res = await fetch(`/api/v1/assets/${id}/sbom`, { credentials: "same-origin" });
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement("a");
     a.href = url;
@@ -619,7 +603,7 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
         description={`${asset.agent?.platform === "kubernetes" ? "Kubernetes node · " : ""}${asset.distro ?? "Unknown OS"} · ${asset.packages} packages · SBOM ${ago(asset.sbom.receivedAt)} (${asset.sbom.format})`}
         actions={
           <>
-            {asset.kind === "host" && asset.agent && (
+            {asset.kind === "host" && asset.agent && can("editor") && (
               <Button icon={<Play />} onClick={scan}>
                 Scan now
               </Button>
@@ -627,9 +611,11 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
             <Button icon={<Download />} onClick={download}>
               SBOM
             </Button>
-            <Button variant="danger" icon={<Trash2 />} onClick={remove}>
-              Delete
-            </Button>
+            {can("admin") && (
+              <Button variant="danger" icon={<Trash2 />} onClick={remove}>
+                Delete
+              </Button>
+            )}
           </>
         }
       />
@@ -674,6 +660,7 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
 // ---------------------------------------------------------------- Exceptions
 
 function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
+  const { can } = useAuth();
   const [rows, setRows] = useState<Exception[]>();
   const load = useCallback(() => call<{ exceptions: Exception[] }>("/api/v1/exceptions").then((r) => setRows(r.exceptions), () => setRows([])), [call]);
   useEffect(() => void load(), [load]);
@@ -689,11 +676,12 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
       header: <span className="sr-only">Remove</span>,
       label: "Remove",
       align: "right",
-      cell: (e) => (
+      cell: (e) =>
+        can("editor") && (
         <IconButton label={`Remove the exception for ${e.vulnerability}`} size="sm" onClick={() => void call(`/api/v1/exceptions/${e.id}`, { method: "DELETE" }).then(() => (load(), reload()))}>
           <Trash2 />
         </IconButton>
-      ),
+        ),
     },
   ];
   return (
@@ -729,6 +717,7 @@ function StepTitle({ n, children }: { n?: number; children: ReactNode }) {
 }
 
 function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; reload: () => void; step?: number }) {
+  const { can } = useAuth();
   const update = () => void call("/api/v1/feed/update", { method: "POST" }).then(reload);
   return (
     <Panel
@@ -737,9 +726,11 @@ function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; relo
       actions={
         <>
           {step && (feed?.built ? <StatusBadge tone="success">Ready</StatusBadge> : feed?.updating ? <StatusBadge tone="info">Downloading</StatusBadge> : <StatusBadge tone="warning">Missing</StatusBadge>)}
-          <Button size="sm" icon={<RefreshCw />} onClick={update} loading={feed?.updating} disabled={feed?.updating}>
-            Update now
-          </Button>
+          {can("admin") && (
+            <Button size="sm" icon={<RefreshCw />} onClick={update} loading={feed?.updating} disabled={feed?.updating}>
+              Update now
+            </Button>
+          )}
         </>
       }
     >
@@ -759,7 +750,8 @@ function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; relo
       </dl>
       <p className="mt-3 mb-1 text-sm text-fg-muted">Without internet access, download the archive on another machine and upload it:</p>
       <Code>{`grype db download -o vulnerability-db.tar.zst   # or the URL from: grype db list
-curl -sf -X PUT -H "Authorization: Bearer $VULNS_ADMIN_TOKEN" -H 'content-type: application/zstd' \\
+# VULNS_API_TOKEN: an API token with the admin role, from Settings → API tokens
+curl -sf -X PUT -H "Authorization: Bearer $VULNS_API_TOKEN" -H 'content-type: application/zstd' \\
   --data-binary @vulnerability-db.tar.zst ${window.location.origin}/api/v1/feed`}</Code>
     </Panel>
   );
@@ -850,7 +842,7 @@ function WelcomePage({ call, feed, reload, version }: { call: Call; feed?: Feed;
       <HostsPanel version={version} step={2} />
       <ImagesPanel step={3} />
       <p className="m-0 text-sm text-fg-muted">
-        Tokens are set where vulns runs: VULNS_INGEST_TOKEN for agents and CI, VULNS_ADMIN_TOKEN for this screen. With the Helm chart they are in the release's Secret. Everything here is also in the{" "}
+        vulns-agent sends VULNS_INGEST_TOKEN, set where vulns runs (with the Helm chart it is in the release's Secret). CI can use it too, or an API token with the editor role from <a href="#/tokens">API tokens</a>. Everything here is also in the{" "}
         <a href="/api/docs/">API</a>.
       </p>
     </>
@@ -872,35 +864,54 @@ function useSystemTheme(): "light" | "dark" {
   return dark ? "dark" : "light";
 }
 
-export function App() {
-  const theme = useSystemTheme();
+/** Account, Members and API tokens: the screens come from @openasy/auth. */
+function SettingsPage({ page }: { page: "account" | "members" | "tokens" }) {
+  const { signOut, can } = useAuth();
+  if (page !== "account" && !can("admin")) return <EmptyState title="Admins only">Ask an admin of this vulns for access.</EmptyState>;
+  const titles = {
+    account: ["Account", "Your profile, password, two-step verification and where you are signed in."],
+    members: ["Members", "Who can sign in to this vulns, and with which role. Viewers see everything; editors also accept risks and request scans; admins also delete assets, manage vulnerability data, members and tokens."],
+    tokens: ["API tokens", "For scripts and CI. Each token has one role and an expiry; the secret is shown once."],
+  } as const;
+  return (
+    <>
+      <PageHeader
+        title={titles[page][0]}
+        description={titles[page][1]}
+        actions={
+          page === "account" && (
+            <Button icon={<LogOut />} onClick={() => void signOut()}>
+              Sign out
+            </Button>
+          )
+        }
+      />
+      {page === "account" ? <AccountSettings /> : page === "members" ? <MembersSettings /> : <TokensSettings />}
+    </>
+  );
+}
+
+function Product() {
+  const { me, can } = useAuth();
   const [version, setVersion] = useState<string>();
-  const [token, setToken] = useState(readToken);
-  const [authError, setAuthError] = useState<string>();
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
   const [summary, setSummary] = useState<Summary>();
 
   useEffect(() => {
-    void api<{ version: string }>("/api/v1/version", "").then((v) => setVersion(v.version));
+    void api<{ version: string }>("/api/v1/version").then((v) => setVersion(v.version));
     const onHash = () => setRoute(parseRoute(window.location.hash));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const onUnauthorized = useCallback((msg?: string) => {
-    setAuthError(msg);
-    saveToken("");
-    setToken("");
-  }, []);
-  const call = useApi(token, onUnauthorized);
+  const call = useApi();
 
   const reload = useCallback(() => void call<Summary>("/api/v1/summary").then(setSummary, () => {}), [call]);
   useEffect(() => {
-    if (!token) return;
     reload();
     const t = setInterval(reload, 15_000);
     return () => clearInterval(t);
-  }, [token, reload]);
+  }, [reload]);
 
   const nav = [
     { id: "findings", label: "Findings", icon: TriangleAlert },
@@ -908,36 +919,48 @@ export function App() {
     { id: "images", label: "Images", icon: Boxes, count: summary?.assets.images },
     { id: "exceptions", label: "Exceptions", icon: ShieldOff },
   ];
+  const footerNav = [
+    { id: "setup", label: "Setup", icon: Settings2 },
+    ...(can("admin")
+      ? [
+          { id: "members", label: "Members", icon: Users },
+          { id: "tokens", label: "API tokens", icon: KeyRound },
+        ]
+      : []),
+    { id: "account", label: "Account", icon: UserRound },
+  ];
   const active = route.page === "asset" ? undefined : route.page;
+  const roleName = me.user.role.charAt(0).toUpperCase() + me.user.role.slice(1);
 
   return (
-    <BrandProvider theme={theme} className="min-h-screen">
-      <AppShell product="vulnerabilities" nav={nav} activeNav={active} onNavigate={(id) => go(`#/${id}`)} footerNav={[{ id: "setup", label: "Setup", icon: Settings2 }]}>
-        <Callout tone="warning" title="For testing only">
-          This release (vulns {version ?? "…"}) has no sign-in: everyone with the admin token can see and change everything. The API reference is at <a href="/api/docs/">/api/docs/</a>.
-        </Callout>
-        {!token ? (
-          <TokenForm
-            error={authError}
-            onToken={(t) => {
-              saveToken(t);
-              setToken(t);
-            }}
-          />
-        ) : route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
-          <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
-        ) : route.page === "findings" ? (
-          <FindingsPage call={call} summary={summary} reload={reload} />
-        ) : route.page === "hosts" || route.page === "images" ? (
-          <AssetsPage key={route.page} call={call} kind={route.page === "hosts" ? "host" : "image"} />
-        ) : route.page === "asset" ? (
-          <AssetPage key={route.id} call={call} id={route.id} />
-        ) : route.page === "exceptions" ? (
-          <ExceptionsPage call={call} reload={reload} />
-        ) : (
-          <SetupPage call={call} feed={summary?.feed} reload={reload} version={version} />
-        )}
-      </AppShell>
+    <AppShell product="vulnerabilities" nav={nav} activeNav={active} onNavigate={(id) => go(`#/${id}`)} footerNav={footerNav} user={{ name: me.user.name, role: roleName }}>
+      {route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
+        <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
+      ) : route.page === "findings" ? (
+        <FindingsPage call={call} summary={summary} reload={reload} />
+      ) : route.page === "hosts" || route.page === "images" ? (
+        <AssetsPage key={route.page} call={call} kind={route.page === "hosts" ? "host" : "image"} />
+      ) : route.page === "asset" ? (
+        <AssetPage key={route.id} call={call} id={route.id} />
+      ) : route.page === "exceptions" ? (
+        <ExceptionsPage call={call} reload={reload} />
+      ) : route.page === "account" || route.page === "members" || route.page === "tokens" ? (
+        <SettingsPage page={route.page} />
+      ) : (
+        <SetupPage call={call} feed={summary?.feed} reload={reload} version={version} />
+      )}
+    </AppShell>
+  );
+}
+
+export function App() {
+  const theme = useSystemTheme();
+  return (
+    // No organization until branding is configurable (ADR 0004); the library's default is a placeholder.
+    <BrandProvider theme={theme} brand={{ name: "OpenAsy", organization: undefined }} className="min-h-screen">
+      <AuthGate product="OpenAsy Vulnerabilities">
+        <Product />
+      </AuthGate>
     </BrandProvider>
   );
 }

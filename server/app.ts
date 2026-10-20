@@ -6,6 +6,7 @@ import { extname, join, normalize } from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { DatabaseSync } from "node:sqlite";
 import { createGunzip } from "node:zlib";
+import { AuthError, mergeOpenApi, sendProblem, type Auth, type Role } from "@openasy/auth";
 import type { Severity } from "./grype.ts";
 import { log } from "./log.ts";
 import { countRequest, renderMetrics } from "./metrics.ts";
@@ -15,9 +16,11 @@ export interface AppOptions {
   db: DatabaseSync;
   vulns: Vulns;
   version: string;
+  /** Sign-in, sessions, members and API tokens (ADR 0002, 0003). */
+  auth: Auth;
   /**
-   * Token for the management API until sign-in exists (ADR 0002). Management requests are
-   * refused when it is unset.
+   * Deprecated: one shared token with the admin role, for scripts written before sign-in existed. Use an API token
+   * from Settings instead; this one has no expiry and is not tied to a person.
    */
   adminToken?: string;
   /** Token agents and CI send with SBOMs. It can add SBOMs and nothing else (ADR 0003). */
@@ -151,8 +154,8 @@ function tokenMatches(header: string | undefined, expected: string | undefined):
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** "ingest" also accepts the admin token, so one person can try everything with one token. */
-type Auth = "none" | "admin" | "ingest";
+/** The role a route needs (ADR 0003), or "ingest" for SBOMs and heartbeats from vulns-agent and CI. */
+type Access = "none" | "ingest" | Role;
 interface Ctx {
   req: IncomingMessage;
   res: ServerResponse;
@@ -164,7 +167,7 @@ interface Route {
   method: string;
   /** Path pattern; each `:name` matches one segment. */
   path: string;
-  auth: Auth;
+  auth: Access;
   handle: (ctx: Ctx) => unknown;
 }
 
@@ -187,8 +190,9 @@ function vulnFilter(url: URL): VulnFilter {
   return { status, severity, kev: bool(url, "kev"), fixable: bool(url, "fixable"), kind: kind ?? undefined, assetId: url.searchParams.get("asset") ?? undefined, q: q || undefined };
 }
 
-export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true }: AppOptions) {
-  const spec = openapi && JSON.stringify({ ...openapi, info: { ...(openapi.info as object), version } });
+export function createApp({ db, vulns, version, auth, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true }: AppOptions) {
+  // The served description includes /api/v1/auth from @openasy/auth, so the API reference documents sign-in too.
+  const spec = openapi && JSON.stringify({ ...mergeOpenApi(openapi), info: { ...(openapi.info as object), version } });
   const created = (res: ServerResponse, data: unknown) => (json(res, 201, data), undefined);
   const noContent = (res: ServerResponse) => {
     res.writeHead(204, SECURITY_HEADERS).end();
@@ -198,7 +202,7 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
 
   const routes: Route[] = [
     { method: "GET", path: "/api/v1/version", auth: "none", handle: () => ({ product: "vulns", version }) },
-    { method: "GET", path: "/api/v1/summary", auth: "admin", handle: () => vulns.summary() },
+    { method: "GET", path: "/api/v1/summary", auth: "viewer", handle: () => vulns.summary() },
 
     // SBOMs in: from vulns-agent on hosts, and from CI for images.
     {
@@ -224,18 +228,18 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
     {
       method: "GET",
       path: "/api/v1/assets",
-      auth: "admin",
+      auth: "viewer",
       handle: ({ url }) => {
         const page = vulns.listAssets(url.searchParams.get("kind"), cursor(url), limit(url));
         return { assets: page.items, ...(page.nextCursor && { nextCursor: page.nextCursor }) };
       },
     },
-    { method: "GET", path: "/api/v1/assets/:id", auth: "admin", handle: ({ params }) => vulns.asset(params[0]!) },
+    { method: "GET", path: "/api/v1/assets/:id", auth: "viewer", handle: ({ params }) => vulns.asset(params[0]!) },
     { method: "DELETE", path: "/api/v1/assets/:id", auth: "admin", handle: ({ res, params }) => (vulns.deleteAsset(params[0]!), noContent(res)) },
     {
       method: "GET",
       path: "/api/v1/assets/:id/sbom",
-      auth: "admin",
+      auth: "viewer",
       handle: ({ res, params }) => {
         const { body, format } = vulns.sbom(params[0]!);
         send(res, 200, body, "application/json", { "content-disposition": `attachment; filename="${params[0]}.${format}.json"`, "x-sbom-format": format });
@@ -244,7 +248,7 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
     {
       method: "GET",
       path: "/api/v1/assets/:id/findings",
-      auth: "admin",
+      auth: "viewer",
       handle: ({ url, params }) => {
         const status = url.searchParams.get("status") ?? "open";
         if (status !== "open" && status !== "excepted" && status !== "resolved") throw new VulnsError(422, "invalid-body", "status must be open, excepted or resolved.");
@@ -252,24 +256,24 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
         return { findings: page.items, ...(page.nextCursor && { nextCursor: page.nextCursor }) };
       },
     },
-    { method: "POST", path: "/api/v1/assets/:id/scan", auth: "admin", handle: ({ res, params }) => (vulns.requestScan(params[0]!), json(res, 202, { status: "requested" })) },
+    { method: "POST", path: "/api/v1/assets/:id/scan", auth: "editor", handle: ({ res, params }) => (vulns.requestScan(params[0]!), json(res, 202, { status: "requested" })) },
 
     // Vulnerabilities across every asset.
     {
       method: "GET",
       path: "/api/v1/vulnerabilities",
-      auth: "admin",
+      auth: "viewer",
       handle: ({ url }) => {
         const page = vulns.vulnerabilities(vulnFilter(url), cursor(url), limit(url));
         return { vulnerabilities: page.items, ...(page.nextCursor && { nextCursor: page.nextCursor }) };
       },
     },
-    { method: "GET", path: "/api/v1/vulnerabilities/:id", auth: "admin", handle: ({ params }) => vulns.vulnerability(params[0]!) },
+    { method: "GET", path: "/api/v1/vulnerabilities/:id", auth: "viewer", handle: ({ params }) => vulns.vulnerability(params[0]!) },
 
     // Accepted risk.
-    { method: "GET", path: "/api/v1/exceptions", auth: "admin", handle: () => ({ exceptions: vulns.listExceptions() }) },
-    { method: "POST", path: "/api/v1/exceptions", auth: "admin", handle: async ({ res, body }) => created(res, vulns.createException(await body())) },
-    { method: "DELETE", path: "/api/v1/exceptions/:id", auth: "admin", handle: ({ res, params }) => (vulns.deleteException(params[0]!), noContent(res)) },
+    { method: "GET", path: "/api/v1/exceptions", auth: "viewer", handle: () => ({ exceptions: vulns.listExceptions() }) },
+    { method: "POST", path: "/api/v1/exceptions", auth: "editor", handle: async ({ res, body }) => created(res, vulns.createException(await body())) },
+    { method: "DELETE", path: "/api/v1/exceptions/:id", auth: "editor", handle: ({ res, params }) => (vulns.deleteException(params[0]!), noContent(res)) },
 
     // vulns-agent.
     {
@@ -296,7 +300,7 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
     },
 
     // Vulnerability data.
-    { method: "GET", path: "/api/v1/feed", auth: "admin", handle: () => vulns.feed() },
+    { method: "GET", path: "/api/v1/feed", auth: "viewer", handle: () => vulns.feed() },
     {
       method: "POST",
       path: "/api/v1/feed/update",
@@ -341,15 +345,16 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
 
   const compiled = routes.map((r) => ({ ...r, re: new RegExp(`^${r.path.replace(/:[a-z]+/g, "([^/]+)")}$`) }));
 
-  function authorize(req: IncomingMessage, auth: Auth) {
-    if (auth === "none") return;
-    if (auth === "ingest" && tokenMatches(req.headers.authorization, ingestToken)) return;
-    if (!adminToken && !(auth === "ingest" && ingestToken)) {
-      throw new VulnsError(503, "not-configured", `Set ${auth === "admin" ? "VULNS_ADMIN_TOKEN" : "VULNS_INGEST_TOKEN"} on vulns to use this endpoint.`);
+  function authorize(req: IncomingMessage, access: Access) {
+    if (access === "none") return;
+    if (access === "ingest" && tokenMatches(req.headers.authorization, ingestToken)) return;
+    if (tokenMatches(req.headers.authorization, adminToken)) return;
+    if (access === "ingest") {
+      // An API token or a session with the editor role can send SBOMs too, for CI set up from Settings.
+      if (!ingestToken && !req.headers.authorization?.startsWith("Bearer oa_")) throw new VulnsError(503, "not-configured", "Set VULNS_INGEST_TOKEN on vulns, or send an API token with the editor role.");
+      if (!req.headers.authorization?.startsWith("Bearer oa_")) throw new VulnsError(401, "invalid-token", "Send VULNS_INGEST_TOKEN or an API token as a bearer token.");
     }
-    if (!tokenMatches(req.headers.authorization, adminToken)) {
-      throw new VulnsError(401, "invalid-token", auth === "admin" ? "Send VULNS_ADMIN_TOKEN as a bearer token." : "Send VULNS_INGEST_TOKEN as a bearer token.");
-    }
+    auth.authorize(req, access === "ingest" ? "editor" : access);
   }
 
   async function route(req: IncomingMessage, res: ServerResponse): Promise<string> {
@@ -390,6 +395,8 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
       return "/api/docs";
     }
 
+    if (await auth.handle(req, res)) return auth.routeName(req) ?? "/api/v1/auth/*";
+
     for (const r of compiled) {
       const m = path.match(r.re);
       if (!m || r.method !== req.method) continue;
@@ -399,6 +406,11 @@ export function createApp({ db, vulns, version, adminToken, ingestToken, tmpDir,
         const result = await r.handle({ req, res, url, params, body: () => readJson(req) });
         if (!res.headersSent && result !== undefined) json(res, 200, result);
       } catch (err) {
+        if (err instanceof AuthError) {
+          sendProblem(res, err);
+          if (!req.complete) req.resume();
+          return r.path;
+        }
         if (!(err instanceof VulnsError)) throw err;
         problem(res, err.status, err.code, err.message);
         // Unread request bodies would otherwise hold the connection.

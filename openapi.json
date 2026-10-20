@@ -4,7 +4,7 @@
     "title": "OpenAsy Vulnerabilities API",
     "version": "0.1.0",
     "summary": "OS package and container image vulnerabilities from SBOMs, ranked by exploitability.",
-    "description": "Every screen of vulns uses this API, and so can your scripts and CI (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nSend SBOMs (Syft JSON, CycloneDX JSON or SPDX JSON) with `VULNS_INGEST_TOKEN`; vulns-agent does this for hosts. Everything else takes `VULNS_ADMIN_TOKEN` until sign-in exists (ADR 0002). Use this release only for testing.",
+    "description": "Every screen of vulns uses this API, and so can your scripts and CI (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nSend SBOMs (Syft JSON, CycloneDX JSON or SPDX JSON) with `VULNS_INGEST_TOKEN`; vulns-agent does this for hosts. Everything else takes the session of a signed-in person or an API token, and each operation names the role it needs (`x-openasy-role`: viewer, editor, admin; ADR 0003).\n\nSign-in, members and API tokens are under `/api/v1/auth`, provided by [@openasy/auth](https://github.com/openasy/auth#routes).",
     "license": {
       "name": "AGPL-3.0-only",
       "identifier": "AGPL-3.0-only"
@@ -54,8 +54,14 @@
           "Vulnerabilities"
         ],
         "summary": "List vulnerabilities",
-        "description": "Open findings grouped by vulnerability and package, with how many hosts and images have it. Known exploited first, then by risk.",
+        "description": "Open findings grouped by vulnerability and package, with how many hosts and images have it. Known exploited first, then by risk.\n\nNeeds the viewer role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -165,13 +171,17 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "422": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer"
       }
     },
     "/api/v1/vulnerabilities/{id}": {
@@ -181,8 +191,14 @@
           "Vulnerabilities"
         ],
         "summary": "Get a vulnerability",
-        "description": "Every open finding of one vulnerability: which hosts and images, which package version, and the fix.",
+        "description": "Every open finding of one vulnerability: which hosts and images, which package version, and the fix.\n\nNeeds the viewer role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -212,13 +228,17 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer"
       }
     },
     "/api/v1/summary": {
@@ -229,6 +249,12 @@
         ],
         "summary": "Get the overview",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -247,10 +273,15 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
       }
     },
     "/api/v1/assets": {
@@ -261,6 +292,12 @@
         ],
         "summary": "List hosts and images",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -311,13 +348,18 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "422": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
       }
     },
     "/api/v1/assets/{id}": {
@@ -328,6 +370,12 @@
         ],
         "summary": "Get a host or image",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -357,13 +405,18 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
       },
       "delete": {
         "operationId": "deleteAsset",
@@ -371,8 +424,14 @@
           "Assets"
         ],
         "summary": "Delete a host or image",
-        "description": "Deletes the asset, its SBOM, its findings and its exceptions. A host comes back with the next SBOM its agent sends.",
+        "description": "Deletes the asset, its SBOM, its findings and its exceptions. A host comes back with the next SBOM its agent sends.\n\nNeeds the admin role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -395,13 +454,17 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "admin"
       }
     },
     "/api/v1/assets/{id}/findings": {
@@ -412,6 +475,12 @@
         ],
         "summary": "List an asset's findings",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -477,6 +546,9 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
@@ -486,7 +558,9 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
       }
     },
     "/api/v1/assets/{id}/sbom": {
@@ -496,8 +570,14 @@
           "Assets"
         ],
         "summary": "Download an asset's SBOM",
-        "description": "The last SBOM received, exactly as it was sent. The `X-SBOM-Format` header names its format.",
+        "description": "The last SBOM received, exactly as it was sent. The `X-SBOM-Format` header names its format.\n\nNeeds the viewer role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -527,13 +607,17 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer"
       }
     },
     "/api/v1/assets/{id}/scan": {
@@ -543,8 +627,14 @@
           "Assets"
         ],
         "summary": "Ask a host's agent to scan now",
-        "description": "The agent hears about it on its next heartbeat (every minute) and sends a new SBOM. Images are scanned when CI sends a new SBOM.",
+        "description": "The agent hears about it on its next heartbeat (every minute) and sends a new SBOM. Images are scanned when CI sends a new SBOM.\n\nNeeds the editor role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -582,6 +672,9 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
@@ -591,7 +684,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "editor"
       }
     },
     "/api/v1/sboms": {
@@ -601,10 +695,16 @@
           "SBOMs"
         ],
         "summary": "Send an SBOM",
-        "description": "Adds or replaces the SBOM of a host or image and matches it. Findings that no longer match are resolved.\n\n```bash\nsyft ghcr.io/acme/app:1.4.2 -o syft-json | curl -sf -X POST -H \"Authorization: Bearer $VULNS_INGEST_TOKEN\" \\\n  -H 'content-type: application/json' --data-binary @- \\\n  \"https://vulns.example.com/api/v1/sboms?kind=image&name=ghcr.io/acme/app:1.4.2&wait=true\"\n```\n\nThe body may be gzipped (`Content-Encoding: gzip`), up to 128 MiB unpacked.",
+        "description": "Adds or replaces the SBOM of a host or image and matches it. Findings that no longer match are resolved.\n\n```bash\nsyft ghcr.io/acme/app:1.4.2 -o syft-json | curl -sf -X POST -H \"Authorization: Bearer $VULNS_INGEST_TOKEN\" \\\n  -H 'content-type: application/json' --data-binary @- \\\n  \"https://vulns.example.com/api/v1/sboms?kind=image&name=ghcr.io/acme/app:1.4.2&wait=true\"\n```\n\nThe body may be gzipped (`Content-Encoding: gzip`), up to 128 MiB unpacked.\n\nTakes VULNS_INGEST_TOKEN, or an API token with the editor role.",
         "security": [
           {
             "ingestToken": []
+          },
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
           },
           {
             "adminToken": []
@@ -688,6 +788,9 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "413": {
             "$ref": "#/components/responses/Problem"
           },
@@ -697,7 +800,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "editor"
       }
     },
     "/api/v1/exceptions": {
@@ -708,6 +812,12 @@
         ],
         "summary": "List exceptions",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -726,10 +836,15 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
       },
       "post": {
         "operationId": "createException",
@@ -737,8 +852,14 @@
           "Exceptions"
         ],
         "summary": "Accept a risk",
-        "description": "Hides a vulnerability on one asset, or on every asset, until it expires. It shows again after the expiry.",
+        "description": "Hides a vulnerability on one asset, or on every asset, until it expires. It shows again after the expiry.\n\nNeeds the editor role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -770,13 +891,17 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "422": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "editor"
       }
     },
     "/api/v1/exceptions/{id}": {
@@ -787,6 +912,12 @@
         ],
         "summary": "Remove an exception",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -809,13 +940,18 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "404": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "editor",
+        "description": "Needs the editor role."
       }
     },
     "/api/v1/feed": {
@@ -826,6 +962,12 @@
         ],
         "summary": "Get the vulnerability data status",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -844,10 +986,15 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
       },
       "put": {
         "operationId": "importFeed",
@@ -855,8 +1002,14 @@
           "Vulnerability data"
         ],
         "summary": "Import vulnerability data",
-        "description": "For installs without internet access (ADR 0015). On a machine that has it, download the archive with `grype db download` (or from the URL in `grype db list`), then upload it:\n\n```bash\ncurl -sf -X PUT -H \"Authorization: Bearer $VULNS_ADMIN_TOKEN\" -H 'content-type: application/zstd' \\\n  --data-binary @vulnerability-db_v6.tar.zst https://vulns.example.com/api/v1/feed\n```\n\nEvery asset is matched again afterwards.",
+        "description": "For installs without internet access (ADR 0015). On a machine that has it, download the archive with `grype db download` (or from the URL in `grype db list`), then upload it:\n\n```bash\ncurl -sf -X PUT -H \"Authorization: Bearer $VULNS_ADMIN_TOKEN\" -H 'content-type: application/zstd' \\\n  --data-binary @vulnerability-db_v6.tar.zst https://vulns.example.com/api/v1/feed\n```\n\nEvery asset is matched again afterwards.\n\nNeeds the admin role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -892,6 +1045,9 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "413": {
             "$ref": "#/components/responses/Problem"
           },
@@ -901,7 +1057,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "admin"
       }
     },
     "/api/v1/feed/update": {
@@ -911,8 +1068,14 @@
           "Vulnerability data"
         ],
         "summary": "Download newer vulnerability data",
-        "description": "Starts a download from grype.anchore.io, or `VULNS_FEED_URL`. Nothing about this install is sent. Every asset is matched again when the data changed.",
+        "description": "Starts a download from grype.anchore.io, or `VULNS_FEED_URL`. Nothing about this install is sent. Every asset is matched again when the data changed.\n\nNeeds the admin role.",
         "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
           {
             "adminToken": []
           }
@@ -931,10 +1094,14 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "admin"
       }
     },
     "/api/v1/agents/heartbeat": {
@@ -944,10 +1111,16 @@
           "Agents"
         ],
         "summary": "Report an agent",
-        "description": "Sent by vulns-agent every minute. The answer says whether to scan now.",
+        "description": "Sent by vulns-agent every minute. The answer says whether to scan now.\n\nTakes VULNS_INGEST_TOKEN, or an API token with the editor role.",
         "security": [
           {
             "ingestToken": []
+          },
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
           },
           {
             "adminToken": []
@@ -980,6 +1153,9 @@
           "401": {
             "$ref": "#/components/responses/Problem"
           },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
           "409": {
             "$ref": "#/components/responses/Problem"
           },
@@ -989,7 +1165,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-openasy-role": "editor"
       }
     },
     "/api/v1/version": {
@@ -1094,10 +1271,22 @@
   },
   "components": {
     "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-openasy-session",
+        "description": "The browser session after signing in (`openasy-session` when vulns runs on plain http://localhost). Requests that change something must come from the vulns origin."
+      },
+      "apiToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token created under Settings → API tokens (`oa_vulns_...`): one role, always an expiry (ADR 0003)."
+      },
       "adminToken": {
         "type": "http",
         "scheme": "bearer",
-        "description": "`VULNS_ADMIN_TOKEN`, until sign-in exists (ADR 0002)."
+        "description": "Deprecated: `VULNS_ADMIN_TOKEN`, one shared token with the admin role and no expiry. Use an API token instead.",
+        "x-deprecated": true
       },
       "ingestToken": {
         "type": "http",
@@ -1149,7 +1338,14 @@
               "conflict",
               "not-configured",
               "payload-too-large",
-              "internal-error"
+              "internal-error",
+              "unauthenticated",
+              "invalid-credentials",
+              "mfa-required",
+              "mfa-setup-required",
+              "forbidden",
+              "cross-site",
+              "rate-limited"
             ],
             "description": "Stable; match on this."
           },
