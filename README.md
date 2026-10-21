@@ -83,6 +83,9 @@ Sign-in comes from [@openasy/auth](https://github.com/openasy/auth), the same in
   link. Forgotten passwords work the same way: the admin creates a new link.
 - **API tokens**: Settings → API tokens. One role each, an expiry within a year, the secret shown once. Send it as
   `Authorization: Bearer oa_vulns_...`. A token with the editor role can also send SBOMs from CI.
+- **Settings, Sign-in**: owners add an identity provider in the UI instead: OpenAsy Identity, Keycloak, Microsoft Entra
+  ID, Okta, Google, authentik, ZITADEL or any OpenID Connect provider. The page shows that provider's steps and the
+  redirect URI to register, checks the issuer, and maps groups to roles; the client secret is kept encrypted.
 - **OIDC** (Entra ID, Okta, Google, Keycloak, Authentik, Zitadel...): register vulns as a confidential client with the
   redirect URI `<VULNS_PUBLIC_URL>/api/v1/auth/oidc/sso/callback`, then set:
 

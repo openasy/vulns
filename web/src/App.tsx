@@ -25,8 +25,8 @@ import {
   type Column,
   type Severity as UiSeverity,
 } from "@openasy/ui";
-import { AccountSettings, AuthGate, MembersSettings, TokensSettings, useAuth } from "@openasy/auth/react";
-import { Boxes, Download, KeyRound, LogOut, Play, RefreshCw, Server, Settings2, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
+import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAuth } from "@openasy/auth/react";
+import { Boxes, Download, KeyRound, LogIn, LogOut, Play, RefreshCw, Server, Settings2, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   api,
@@ -57,7 +57,7 @@ function ago(iso: string | null | undefined): string {
   return `${Math.round(s / 86_400)} d ago`;
 }
 
-const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "tokens"] as const;
+const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "signin", "tokens"] as const;
 type Route = { page: "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
 function parseRoute(hash: string): Route {
   const [page, id] = hash.replace(/^#\/?/, "").split("/");
@@ -864,13 +864,14 @@ function useSystemTheme(): "light" | "dark" {
   return dark ? "dark" : "light";
 }
 
-/** Account, Members and API tokens: the screens come from @openasy/auth. */
-function SettingsPage({ page }: { page: "account" | "members" | "tokens" }) {
+/** Account, Members, Sign-in and API tokens: the screens come from @openasy/auth. */
+function SettingsPage({ page }: { page: "account" | "members" | "signin" | "tokens" }) {
   const { signOut, can } = useAuth();
   if (page !== "account" && !can("admin")) return <EmptyState title="Admins only">Ask an admin of this vulns for access.</EmptyState>;
   const titles = {
     account: ["Account", "Your profile, password, two-step verification and where you are signed in."],
     members: ["Members", "Who can sign in to this vulns, and with which role. Viewers see everything; editors also accept risks and request scans; admins also delete assets, manage vulnerability data, members and tokens."],
+    signin: ["Sign-in", "Identity providers people can sign in with, such as OpenAsy Identity, Keycloak or Microsoft Entra ID, and which of their groups give which role."],
     tokens: ["API tokens", "For scripts and CI. Each token has one role and an expiry; the secret is shown once."],
   } as const;
   return (
@@ -886,7 +887,7 @@ function SettingsPage({ page }: { page: "account" | "members" | "tokens" }) {
           )
         }
       />
-      {page === "account" ? <AccountSettings /> : page === "members" ? <MembersSettings /> : <TokensSettings />}
+      {page === "account" ? <AccountSettings /> : page === "members" ? <MembersSettings /> : page === "signin" ? <SignInSettings /> : <TokensSettings />}
     </>
   );
 }
@@ -924,6 +925,7 @@ function Product() {
     ...(can("admin")
       ? [
           { id: "members", label: "Members", icon: Users },
+          { id: "signin", label: "Sign-in", icon: LogIn },
           { id: "tokens", label: "API tokens", icon: KeyRound },
         ]
       : []),
@@ -944,7 +946,7 @@ function Product() {
         <AssetPage key={route.id} call={call} id={route.id} />
       ) : route.page === "exceptions" ? (
         <ExceptionsPage call={call} reload={reload} />
-      ) : route.page === "account" || route.page === "members" || route.page === "tokens" ? (
+      ) : route.page === "account" || route.page === "members" || route.page === "signin" || route.page === "tokens" ? (
         <SettingsPage page={route.page} />
       ) : (
         <SetupPage call={call} feed={summary?.feed} reload={reload} version={version} />
