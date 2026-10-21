@@ -12,8 +12,10 @@ import {
   IconButton,
   KpiCard,
   KpiGrid,
+  navigate,
   PageHeader,
   Panel,
+  PRODUCT_IDS,
   SearchInput,
   SegmentedControl,
   SelectField,
@@ -22,7 +24,9 @@ import {
   Switch,
   Tabs,
   TextField,
+  usePath,
   type Column,
+  type ProductId,
   type Severity as UiSeverity,
 } from "@openasy/ui";
 import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAuth } from "@openasy/auth/react";
@@ -38,6 +42,7 @@ import {
   type Feed,
   type Finding,
   type Kind,
+  type ProductLink,
   type Severity,
   type Summary,
   type Vulnerability,
@@ -59,13 +64,14 @@ function ago(iso: string | null | undefined): string {
 
 const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "signin", "tokens"] as const;
 type Route = { page: "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
-function parseRoute(hash: string): Route {
-  const [page, id] = hash.replace(/^#\/?/, "").split("/");
+/** The first path segments that are pages of this UI, for followLinks. */
+export const PATHS = ["findings", "assets", ...PAGES];
+function parseRoute(path: string): Route {
+  const [page, id] = path.replace(/^\//, "").split("/");
   if (page === "assets" && id) return { page: "asset", id: decodeURIComponent(id) };
   if ((PAGES as readonly string[]).includes(page ?? "")) return { page: page as (typeof PAGES)[number] };
   return { page: "findings" };
 }
-const go = (hash: string) => (window.location.hash = hash);
 
 /** Data loading with the session; when it ends, the sign-in screen comes back. */
 function useApi() {
@@ -119,7 +125,7 @@ function NoFeed({ feed }: { feed: Feed | undefined }) {
     if (feed?.ageHours != null && feed.ageHours > 72) {
       return (
         <Callout tone="warning" title={`Vulnerability data is ${Math.round(feed.ageHours / 24)} days old`}>
-          New vulnerabilities are missing until it is updated. {feed.error ? `Last update failed: ${feed.error}` : ""} See <a href="#/setup">Setup</a>.
+          New vulnerabilities are missing until it is updated. {feed.error ? `Last update failed: ${feed.error}` : ""} See <a href="/setup">Setup</a>.
         </Callout>
       );
     }
@@ -205,7 +211,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
             <ul className="vulns-list flex flex-col gap-1">
               {detail.affected.map((a) => (
                 <li key={`${a.asset.id}-${a.package.name}-${a.package.version}`} className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <EntityChip kind={a.asset.kind === "host" ? "host" : "container"} value={a.asset.name} href={`#/assets/${a.asset.id}`} />
+                  <EntityChip kind={a.asset.kind === "host" ? "host" : "container"} value={a.asset.name} href={`/assets/${a.asset.id}`} />
                   <span className="font-mono">
                     {a.package.name} {a.package.version} → {a.fix.version ?? "no fix"}
                   </span>
@@ -417,7 +423,7 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
               <EmptyState title={tab === "open" ? "No open findings" : "No accepted risks"}>
                 {s && s.assets.hosts + s.assets.images === 0 ? (
                   <>
-                    Nothing has been scanned yet. See <a href="#/setup">Setup</a> to add hosts and images.
+                    Nothing has been scanned yet. See <a href="/setup">Setup</a> to add hosts and images.
                   </>
                 ) : (
                   "Nothing matches these filters."
@@ -515,13 +521,13 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
           rows={rows ?? []}
           loading={!rows}
           getRowId={(a) => a.id}
-          onRowClick={(a) => go(`#/assets/${a.id}`)}
+          onRowClick={(a) => navigate(`/assets/${a.id}`)}
           defaultSort={{ id: "open", direction: "desc" }}
           minWidth={900}
           pageSize={50}
           empty={
             <EmptyState title={kind === "host" ? "No hosts yet" : "No images yet"}>
-              See <a href="#/setup">Setup</a> for how to {kind === "host" ? "run vulns-agent on a host" : "send image SBOMs from CI"}.
+              See <a href="/setup">Setup</a> for how to {kind === "host" ? "run vulns-agent on a host" : "send image SBOMs from CI"}.
             </EmptyState>
           }
         />
@@ -562,7 +568,7 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
   };
   const remove = () => {
     if (!window.confirm(`Delete ${asset.name}, its SBOM and its findings?`)) return;
-    void call(`/api/v1/assets/${id}`, { method: "DELETE" }).then(() => go(asset.kind === "host" ? "#/hosts" : "#/images"));
+    void call(`/api/v1/assets/${id}`, { method: "DELETE" }).then(() => navigate(asset.kind === "host" ? "/hosts" : "/images"));
   };
 
   const columns: Column<Finding>[] = [
@@ -599,7 +605,7 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
     <>
       <PageHeader
         title={asset.name}
-        breadcrumbs={[{ label: asset.kind === "host" ? "Hosts" : "Images", href: asset.kind === "host" ? "#/hosts" : "#/images" }, { label: asset.name }]}
+        breadcrumbs={[{ label: asset.kind === "host" ? "Hosts" : "Images", href: asset.kind === "host" ? "/hosts" : "/images" }, { label: asset.name }]}
         description={`${asset.agent?.platform === "kubernetes" ? "Kubernetes node · " : ""}${asset.distro ?? "Unknown OS"} · ${asset.packages} packages · SBOM ${ago(asset.sbom.receivedAt)} (${asset.sbom.format})`}
         actions={
           <>
@@ -667,7 +673,7 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
 
   const columns: Column<Exception>[] = [
     { id: "vuln", header: "Vulnerability", cell: (e) => <EntityChip kind="cve" value={e.vulnerability} /> },
-    { id: "scope", header: "On", cell: (e) => (e.asset ? <EntityChip kind={e.asset.kind === "host" ? "host" : "container"} value={e.asset.name} href={`#/assets/${e.asset.id}`} /> : "Every asset") },
+    { id: "scope", header: "On", cell: (e) => (e.asset ? <EntityChip kind={e.asset.kind === "host" ? "host" : "container"} value={e.asset.name} href={`/assets/${e.asset.id}`} /> : "Every asset") },
     { id: "reason", header: "Reason", width: "36%", cell: (e) => <span className="text-xs">{e.reason}</span> },
     { id: "expires", header: "Expires", sortValue: (e) => e.expiresAt, cell: (e) => <span className="text-xs">{new Date(e.expiresAt).toLocaleDateString()}</span> },
     { id: "state", header: "State", cell: (e) => (e.active ? <StatusBadge tone="success">Active</StatusBadge> : <StatusBadge tone="neutral">Expired</StatusBadge>) },
@@ -842,7 +848,7 @@ function WelcomePage({ call, feed, reload, version }: { call: Call; feed?: Feed;
       <HostsPanel version={version} step={2} />
       <ImagesPanel step={3} />
       <p className="m-0 text-sm text-fg-muted">
-        vulns-agent sends VULNS_INGEST_TOKEN, set where vulns runs (with the Helm chart it is in the release's Secret). CI can use it too, or an API token with the editor role from <a href="#/tokens">API tokens</a>. Everything here is also in the{" "}
+        vulns-agent sends VULNS_INGEST_TOKEN, set where vulns runs (with the Helm chart it is in the release's Secret). CI can use it too, or an API token with the editor role from <a href="/tokens">API tokens</a>. Everything here is also in the{" "}
         <a href="/api/docs/">API</a>.
       </p>
     </>
@@ -895,17 +901,22 @@ function SettingsPage({ page }: { page: "account" | "members" | "signin" | "toke
 function Product() {
   const { me, can } = useAuth();
   const [version, setVersion] = useState<string>();
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  const route = parseRoute(usePath());
   const [summary, setSummary] = useState<Summary>();
+  const [products, setProducts] = useState<Array<ProductLink & { id: ProductId }>>([]);
 
   useEffect(() => {
     void api<{ version: string }>("/api/v1/version").then((v) => setVersion(v.version));
-    const onHash = () => setRoute(parseRoute(window.location.hash));
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
   const call = useApi();
+  // The install's other products (OPENASY_PRODUCTS), for the switcher; ids this UI does not know are left out.
+  useEffect(() => {
+    void call<{ products: ProductLink[] }>("/api/v1/products").then(
+      (r) => setProducts(r.products.filter((p): p is ProductLink & { id: ProductId } => p.id !== "vulnerabilities" && (PRODUCT_IDS as readonly string[]).includes(p.id))),
+      () => {},
+    );
+  }, [call]);
 
   const reload = useCallback(() => void call<Summary>("/api/v1/summary").then(setSummary, () => {}), [call]);
   useEffect(() => {
@@ -935,7 +946,19 @@ function Product() {
   const roleName = me.user.role.charAt(0).toUpperCase() + me.user.role.slice(1);
 
   return (
-    <AppShell product="vulnerabilities" nav={nav} activeNav={active} onNavigate={(id) => go(`#/${id}`)} footerNav={footerNav} user={{ name: me.user.name, role: roleName }}>
+    <AppShell
+      product="vulnerabilities"
+      nav={nav}
+      activeNav={active}
+      onNavigate={(id) => navigate(`/${id}`)}
+      connectedProducts={products.map((p) => p.id)}
+      onSwitchProduct={(id) => {
+        const to = products.find((p) => p.id === id);
+        if (to) window.location.assign(to.url);
+      }}
+      footerNav={footerNav}
+      user={{ name: me.user.name, role: roleName }}
+    >
       {route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
         <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
       ) : route.page === "findings" ? (

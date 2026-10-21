@@ -6,6 +6,7 @@ import { createApp, createMetricsHandler } from "./app.ts";
 import { openDb } from "./db.ts";
 import { createGrype } from "./grype.ts";
 import { log } from "./log.ts";
+import { parseProducts } from "./products.ts";
 import { createVulns } from "./vulns.ts";
 
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
@@ -45,6 +46,8 @@ const auth = createAuth({
 });
 const grype = createGrype({ bin: process.env.VULNS_GRYPE_BIN ?? "/usr/local/bin/grype", dataDir: feedDir, tmpDir, updateUrl: process.env.VULNS_FEED_URL });
 const vulns = createVulns(db, grype, { retentionDays });
+const products = parseProducts(process.env.OPENASY_PRODUCTS);
+if (products.invalid.length) log("warn", "OPENASY_PRODUCTS: left out entries that are not id=https://address", { entries: products.invalid });
 const server = createServer(
   createApp({
     db,
@@ -58,6 +61,7 @@ const server = createServer(
     docsDir: existsSync(docsDir) ? docsDir : undefined,
     openapi,
     serveMetrics: metricsPort === undefined,
+    products: products.products,
   }),
 );
 const metricsServer = metricsPort !== undefined ? createServer(createMetricsHandler(vulns, version)) : undefined;

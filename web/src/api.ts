@@ -4,6 +4,12 @@ export type Severity = "critical" | "high" | "medium" | "low" | "negligible" | "
 export type Kind = "host" | "image";
 export type Counts = Record<Severity, number>;
 
+/** Another OpenAsy product of this install, from OPENASY_PRODUCTS. */
+export interface ProductLink {
+  id: string;
+  url: string;
+}
+
 export interface Fix {
   state: "fixed" | "not-fixed" | "wont-fix" | "unknown";
   version: string | null;

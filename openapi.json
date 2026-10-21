@@ -1191,6 +1191,49 @@
         }
       }
     },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "listProducts",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Other OpenAsy products",
+        "description": "The OpenAsy products of this install and their addresses, from `OPENASY_PRODUCTS`, for the product switcher. Empty when it is not set.\n\nNeeds the viewer role.",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The products, in the order they are configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "viewer"
+      }
+    },
     "/healthz": {
       "get": {
         "operationId": "liveness",
@@ -1423,6 +1466,44 @@
           },
           "version": {
             "type": "string"
+          }
+        }
+      },
+      "ProductLink": {
+        "type": "object",
+        "required": [
+          "id",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The product, as OpenAsy names it.",
+            "examples": [
+              "infrastructure"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The address people open it at.",
+            "examples": [
+              "https://infra.example.com"
+            ]
+          }
+        }
+      },
+      "ProductList": {
+        "type": "object",
+        "required": [
+          "products"
+        ],
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductLink"
+            }
           }
         }
       },

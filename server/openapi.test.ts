@@ -93,6 +93,8 @@ describe("responses match openapi.json", () => {
 
   it("product and health", async () => {
     await call("GET", "/api/v1/version");
+    await call("GET", "/api/v1/products", admin());
+    await call("GET", "/api/v1/products", {});
     await call("GET", "/healthz");
     await call("GET", "/readyz");
     await call("GET", "/metrics");

@@ -10,6 +10,7 @@ import { AuthError, mergeOpenApi, sendProblem, type Auth, type Role } from "@ope
 import type { Severity } from "./grype.ts";
 import { log } from "./log.ts";
 import { countRequest, renderMetrics } from "./metrics.ts";
+import type { ProductLink } from "./products.ts";
 import { AGENT_ID, SEVERITIES, VulnsError, parseLimit, type ProblemCode, type VulnFilter, type Vulns } from "./vulns.ts";
 
 export interface AppOptions {
@@ -35,6 +36,8 @@ export interface AppOptions {
   openapi?: Record<string, unknown>;
   /** false when /metrics is served on its own port instead (ADR 0026). */
   serveMetrics?: boolean;
+  /** The install's OpenAsy products and their addresses, from OPENASY_PRODUCTS, for the product switcher. */
+  products?: ProductLink[];
 }
 
 function metricsText(vulns: Vulns, version: string) {
@@ -190,7 +193,7 @@ function vulnFilter(url: URL): VulnFilter {
   return { status, severity, kev: bool(url, "kev"), fixable: bool(url, "fixable"), kind: kind ?? undefined, assetId: url.searchParams.get("asset") ?? undefined, q: q || undefined };
 }
 
-export function createApp({ db, vulns, version, auth, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true }: AppOptions) {
+export function createApp({ db, vulns, version, auth, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true, products = [] }: AppOptions) {
   // The served description includes /api/v1/auth from @openasy/auth, so the API reference documents sign-in too.
   const spec = openapi && JSON.stringify({ ...mergeOpenApi(openapi), info: { ...(openapi.info as object), version } });
   const created = (res: ServerResponse, data: unknown) => (json(res, 201, data), undefined);
@@ -202,6 +205,7 @@ export function createApp({ db, vulns, version, auth, adminToken, ingestToken, t
 
   const routes: Route[] = [
     { method: "GET", path: "/api/v1/version", auth: "none", handle: () => ({ product: "vulns", version }) },
+    { method: "GET", path: "/api/v1/products", auth: "viewer", handle: () => ({ products }) },
     { method: "GET", path: "/api/v1/summary", auth: "viewer", handle: () => vulns.summary() },
 
     // SBOMs in: from vulns-agent on hosts, and from CI for images.
