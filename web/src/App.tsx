@@ -5,6 +5,7 @@ import {
   Button,
   Callout,
   DataTable,
+  Dialog,
   EmptyState,
   EntityChip,
   FacetFilter,
@@ -28,6 +29,7 @@ import {
   type Column,
   type ProductId,
   type Severity as UiSeverity,
+  useThemePreference,
 } from "@openasy/ui";
 import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAuth } from "@openasy/auth/react";
 import { Boxes, Download, KeyRound, LogIn, LogOut, Play, RefreshCw, Server, Settings2, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
@@ -157,6 +159,8 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
   const [reason, setReason] = useState("");
   const [scope, setScope] = useState("all");
   const [error, setError] = useState<string>();
+  const [accepting, setAccepting] = useState(false);
+  const close = () => (setAccepting(false), setReason(""), setError(undefined));
 
   useEffect(() => {
     setDetail(undefined);
@@ -170,8 +174,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
         method: "POST",
         body: JSON.stringify({ vulnerability: id, reason, expiresAt: new Date(Date.now() + Number(days) * 86_400_000).toISOString(), ...(scope !== "all" && { assetId: scope }) }),
       });
-      setReason("");
-      setError(undefined);
+      close();
       onChanged();
     } catch (err) {
       setError((err as Error).message);
@@ -220,8 +223,30 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
               ))}
             </ul>
           </div>
-          {can("editor") && <form onSubmit={accept} className="flex flex-col gap-2 border-t border-line pt-3">
-            <span className="text-2xs font-medium tracking-wider text-fg-muted uppercase">Accept the risk</span>
+          {can("editor") && (
+            <div className="border-t border-line pt-3">
+              <Button size="sm" icon={<ShieldOff />} onClick={() => setAccepting(true)}>
+                Accept the risk
+              </Button>
+            </div>
+          )}
+          <Dialog
+            open={accepting}
+            onOpenChange={(open) => !open && close()}
+            title={`Accept the risk of ${id}`}
+            description="It stops counting as open until the exception ends. Say why, for the next review."
+            onSubmit={accept}
+            footer={
+              <>
+                <Button type="button" onClick={close}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" icon={<ShieldOff />} disabled={reason.trim().length < 3}>
+                  Accept risk
+                </Button>
+              </>
+            }
+          >
             <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} hint="Why it is acceptable, for the next review." error={error} />
             <div className="grid grid-cols-2 gap-2">
               <SelectField
@@ -242,12 +267,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
                 ]}
               />
             </div>
-            <div>
-              <Button type="submit" size="sm" icon={<ShieldOff />} disabled={reason.trim().length < 3}>
-                Accept risk
-              </Button>
-            </div>
-          </form>}
+          </Dialog>
         </div>
       )}
     </Panel>
@@ -857,19 +877,6 @@ function WelcomePage({ call, feed, reload, version }: { call: Call; feed?: Feed;
 
 // ---------------------------------------------------------------- Shell
 
-/** Follows the operating system's light or dark setting (ADR 0007) until @openasy/ui ships its own system theme. */
-function useSystemTheme(): "light" | "dark" {
-  const query = "(prefers-color-scheme: dark)";
-  const [dark, setDark] = useState(() => window.matchMedia?.(query).matches ?? false);
-  useEffect(() => {
-    const mq = window.matchMedia?.(query);
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
-    mq?.addEventListener("change", onChange);
-    return () => mq?.removeEventListener("change", onChange);
-  }, []);
-  return dark ? "dark" : "light";
-}
-
 /** Account, Members, Sign-in and API tokens: the screens come from @openasy/auth. */
 function SettingsPage({ page }: { page: "account" | "members" | "signin" | "tokens" }) {
   const { signOut, can } = useAuth();
@@ -899,6 +906,7 @@ function SettingsPage({ page }: { page: "account" | "members" | "signin" | "toke
 }
 
 function Product() {
+  const [theme, setTheme] = useThemePreference();
   const { me, can } = useAuth();
   const [version, setVersion] = useState<string>();
   const route = parseRoute(usePath());
@@ -958,6 +966,8 @@ function Product() {
       }}
       footerNav={footerNav}
       user={{ name: me.user.name, role: roleName }}
+      theme={theme}
+      onThemeChange={setTheme}
     >
       {route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
         <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
@@ -979,7 +989,7 @@ function Product() {
 }
 
 export function App() {
-  const theme = useSystemTheme();
+  const [theme] = useThemePreference();
   return (
     // No organization until branding is configurable (ADR 0004); the library's default is a placeholder.
     <BrandProvider theme={theme} brand={{ name: "OpenAsy", organization: undefined }} className="min-h-screen">
