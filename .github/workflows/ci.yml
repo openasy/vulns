@@ -68,6 +68,11 @@ jobs:
           repository: openasy/vulns-agent
           path: vulns-agent
 
+      # vulns and vulns-agent ship with one version (ADR 0019), and main of vulns-agent keeps the last one until its release
+      # commit is pushed: give it this version, so the pair is tested as it will ship.
+      - name: Give vulns-agent the version of vulns
+        run: cd vulns-agent && npm pkg set version="$(node -p 'require("../vulns/package.json").version')"
+
       - name: Build both images
         run: |
           docker build -t vulns:dev vulns
@@ -88,6 +93,11 @@ jobs:
         with:
           repository: openasy/vulns-agent
           path: vulns-agent
+
+      # vulns and vulns-agent ship with one version (ADR 0019), and main of vulns-agent keeps the last one until its release
+      # commit is pushed: give it this version, so the pair is tested as it will ship.
+      - name: Give vulns-agent the version of vulns
+        run: cd vulns-agent && npm pkg set version="$(node -p 'require("../vulns/package.json").version')"
 
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
 
