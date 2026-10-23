@@ -45,7 +45,14 @@ export interface AppOptions {
 
 function metricsText(vulns: Vulns, version: string) {
   const s = vulns.summary();
-  return renderMetrics(version, { assets: s.assets, agents: vulns.countAgents(), findings: vulns.severityTotals(), knownExploited: s.knownExploited, feedBuilt: s.feed.built, queue: vulns.queueLength() });
+  return renderMetrics(version, {
+    assets: s.assets,
+    agents: vulns.countAgents(),
+    findings: vulns.severityTotals(),
+    knownExploited: s.knownExploited,
+    feedBuilt: s.feed.built,
+    queue: vulns.queueLength(),
+  });
 }
 
 /** Serves only /metrics, for a port that is not exposed with the rest (VULNS_METRICS_PORT). */
@@ -86,7 +93,8 @@ function send(res: ServerResponse, status: number, body: string | Buffer, type =
   res.end(body);
 }
 
-const json = (res: ServerResponse, status: number, data: unknown, headers?: Record<string, string>) => send(res, status, JSON.stringify(data), "application/json", headers);
+const json = (res: ServerResponse, status: number, data: unknown, headers?: Record<string, string>) =>
+  send(res, status, JSON.stringify(data), "application/json", headers);
 
 const TITLES: Record<ProblemCode, string> = {
   "invalid-token": "Invalid token",
@@ -141,7 +149,8 @@ async function readBody(req: IncomingMessage, limit: number): Promise<Buffer> {
 
 async function readJson(req: IncomingMessage, limit = 64 * 1024): Promise<Record<string, unknown>> {
   const raw = await readBody(req, limit).catch((err: unknown) => {
-    if (err instanceof VulnsError && err.code === "payload-too-large") throw new VulnsError(400, "invalid-json", `The body must be JSON, at most ${Math.round(limit / 1024)} KiB.`);
+    if (err instanceof VulnsError && err.code === "payload-too-large")
+      throw new VulnsError(400, "invalid-json", `The body must be JSON, at most ${Math.round(limit / 1024)} KiB.`);
     throw err;
   });
   try {
@@ -188,15 +197,38 @@ function vulnFilter(url: URL): VulnFilter {
   const status = url.searchParams.get("status") ?? "open";
   if (status !== "open" && status !== "excepted") throw new VulnsError(422, "invalid-body", "status must be open or excepted.");
   const severity = url.searchParams.get("severity")?.split(",").filter(Boolean) as Severity[] | undefined;
-  if (severity?.some((s) => !SEVERITIES.includes(s))) throw new VulnsError(422, "invalid-body", `severity is a comma-separated list of ${SEVERITIES.join(", ")}.`);
+  if (severity?.some((s) => !SEVERITIES.includes(s)))
+    throw new VulnsError(422, "invalid-body", `severity is a comma-separated list of ${SEVERITIES.join(", ")}.`);
   const kind = url.searchParams.get("kind");
   if (kind !== null && kind !== "host" && kind !== "image") throw new VulnsError(422, "invalid-body", "kind must be host or image.");
   const q = url.searchParams.get("q")?.trim();
   if (q && q.length > 128) throw new VulnsError(422, "invalid-body", "q must be at most 128 characters.");
-  return { status, severity, kev: bool(url, "kev"), fixable: bool(url, "fixable"), kind: kind ?? undefined, assetId: url.searchParams.get("asset") ?? undefined, q: q || undefined };
+  return {
+    status,
+    severity,
+    kev: bool(url, "kev"),
+    fixable: bool(url, "fixable"),
+    kind: kind ?? undefined,
+    assetId: url.searchParams.get("asset") ?? undefined,
+    q: q || undefined,
+  };
 }
 
-export function createApp({ db, vulns, version, auth, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true, products = [], hostsFile }: AppOptions) {
+export function createApp({
+  db,
+  vulns,
+  version,
+  auth,
+  adminToken,
+  ingestToken,
+  tmpDir,
+  webDir,
+  docsDir,
+  openapi,
+  serveMetrics = true,
+  products = [],
+  hostsFile,
+}: AppOptions) {
   // The served description includes /api/v1/auth from @openasy/auth, so the API reference documents sign-in too.
   const spec = openapi && JSON.stringify({ ...mergeOpenApi(openapi), info: { ...(openapi.info as object), version } });
   const created = (res: ServerResponse, data: unknown) => (json(res, 201, data), undefined);
@@ -265,12 +297,18 @@ export function createApp({ db, vulns, version, auth, adminToken, ingestToken, t
       auth: "viewer",
       handle: ({ url, params }) => {
         const status = url.searchParams.get("status") ?? "open";
-        if (status !== "open" && status !== "excepted" && status !== "resolved") throw new VulnsError(422, "invalid-body", "status must be open, excepted or resolved.");
+        if (status !== "open" && status !== "excepted" && status !== "resolved")
+          throw new VulnsError(422, "invalid-body", "status must be open, excepted or resolved.");
         const page = vulns.findings(params[0]!, status, cursor(url), limit(url));
         return { findings: page.items, ...(page.nextCursor && { nextCursor: page.nextCursor }) };
       },
     },
-    { method: "POST", path: "/api/v1/assets/:id/scan", auth: "editor", handle: ({ res, params }) => (vulns.requestScan(params[0]!), json(res, 202, { status: "requested" })) },
+    {
+      method: "POST",
+      path: "/api/v1/assets/:id/scan",
+      auth: "editor",
+      handle: ({ res, params }) => (vulns.requestScan(params[0]!), json(res, 202, { status: "requested" })),
+    },
 
     // Vulnerabilities across every asset.
     {
@@ -304,11 +342,22 @@ export function createApp({ db, vulns, version, auth, adminToken, ingestToken, t
           (lastScanAt != null && (typeof lastScanAt !== "string" || Number.isNaN(Date.parse(lastScanAt)))) ||
           (lastError != null && (typeof lastError !== "string" || lastError.length > 1000))
         ) {
-          throw new VulnsError(422, "invalid-body", "Expected { id, version, platform?, lastScanAt?, lastError? }; ids are lowercase host names, platform is container or kubernetes.");
+          throw new VulnsError(
+            422,
+            "invalid-body",
+            "Expected { id, version, platform?, lastScanAt?, lastError? }; ids are lowercase host names, platform is container or kubernetes.",
+          );
         }
         // ADR 0019: an agent always has the same version as its product.
-        if (agentVersion !== version) throw new VulnsError(409, "version-mismatch", `vulns-agent ${agentVersion} does not match vulns ${version}; install vulns-agent ${version}`);
-        const scanNow = vulns.heartbeat(id, agentVersion, platform, lastScanAt ? new Date(lastScanAt).toISOString() : null, (lastError as string | undefined) ?? null);
+        if (agentVersion !== version)
+          throw new VulnsError(409, "version-mismatch", `vulns-agent ${agentVersion} does not match vulns ${version}; install vulns-agent ${version}`);
+        const scanNow = vulns.heartbeat(
+          id,
+          agentVersion,
+          platform,
+          lastScanAt ? new Date(lastScanAt).toISOString() : null,
+          (lastError as string | undefined) ?? null,
+        );
         json(res, 202, { status: "accepted", scanNow });
       },
     },
@@ -365,8 +414,10 @@ export function createApp({ db, vulns, version, auth, adminToken, ingestToken, t
     if (tokenMatches(req.headers.authorization, adminToken)) return;
     if (access === "ingest") {
       // An API token or a session with the editor role can send SBOMs too, for CI set up from Settings.
-      if (!ingestToken && !req.headers.authorization?.startsWith("Bearer oa_")) throw new VulnsError(503, "not-configured", "Set VULNS_INGEST_TOKEN on vulns, or send an API token with the editor role.");
-      if (!req.headers.authorization?.startsWith("Bearer oa_")) throw new VulnsError(401, "invalid-token", "Send VULNS_INGEST_TOKEN or an API token as a bearer token.");
+      if (!ingestToken && !req.headers.authorization?.startsWith("Bearer oa_"))
+        throw new VulnsError(503, "not-configured", "Set VULNS_INGEST_TOKEN on vulns, or send an API token with the editor role.");
+      if (!req.headers.authorization?.startsWith("Bearer oa_"))
+        throw new VulnsError(401, "invalid-token", "Send VULNS_INGEST_TOKEN or an API token as a bearer token.");
     }
     auth.authorize(req, access === "ingest" ? "editor" : access);
   }

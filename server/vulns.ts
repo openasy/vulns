@@ -49,13 +49,18 @@ export function inspectSbom(body: unknown): { format: SbomFormat; packages: numb
   if (!b || typeof b !== "object" || Array.isArray(b)) throw new VulnsError(422, "invalid-sbom", "The SBOM must be a JSON object.");
   if (Array.isArray(b.artifacts) && (b.descriptor?.name === "syft" || typeof b.schema?.version === "string")) {
     const d = b.distro ?? {};
-    const distro = typeof d.prettyName === "string" && d.prettyName ? d.prettyName : typeof d.id === "string" && d.id ? `${d.id} ${d.versionID ?? ""}`.trim() : null;
+    const distro =
+      typeof d.prettyName === "string" && d.prettyName ? d.prettyName : typeof d.id === "string" && d.id ? `${d.id} ${d.versionID ?? ""}`.trim() : null;
     return { format: "syft-json", packages: b.artifacts.length, distro };
   }
   if (b.bomFormat === "CycloneDX") {
     const components: any[] = Array.isArray(b.components) ? b.components : [];
     const os = components.find((c) => c?.type === "operating-system");
-    return { format: "cyclonedx-json", packages: components.filter((c) => c?.type !== "operating-system").length, distro: os ? `${os.name ?? ""} ${os.version ?? ""}`.trim() || null : null };
+    return {
+      format: "cyclonedx-json",
+      packages: components.filter((c) => c?.type !== "operating-system").length,
+      distro: os ? `${os.name ?? ""} ${os.version ?? ""}`.trim() || null : null,
+    };
   }
   if (typeof b.spdxVersion === "string" && Array.isArray(b.packages)) return { format: "spdx-json", packages: b.packages.length, distro: null };
   throw new VulnsError(422, "invalid-sbom", "Send a Syft JSON, CycloneDX JSON or SPDX JSON SBOM, for example from `syft <image> -o syft-json`.");
@@ -106,7 +111,9 @@ export interface VulnsOptions {
 export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays = 90 }: VulnsOptions = {}) {
   const getSetting = (key: string) => (db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | undefined)?.value;
   const setSetting = (key: string, value: string | null) =>
-    value === null ? db.prepare("DELETE FROM settings WHERE key = ?").run(key) : db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, value);
+    value === null
+      ? db.prepare("DELETE FROM settings WHERE key = ?").run(key)
+      : db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, value);
 
   // Grype runs one at a time: matching loads the vulnerability data, and two copies would double the memory.
   let chain: Promise<unknown> = Promise.resolve();
@@ -153,13 +160,38 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
         if (seen.has(key)) continue;
         seen.add(key);
         upsertFinding.run(
-          assetId, m.vulnId, m.pkgName, m.pkgVersion, m.pkgType, m.pkgSource, m.purl, m.location, m.severity, m.cvss, m.epss, m.epssPercentile, m.kev ? 1 : 0, m.kevDue,
-          m.ransomware ? 1 : 0, m.risk, m.fixState, m.fixedVersion, m.description, m.dataSource, JSON.stringify(m.aliases), at, at,
+          assetId,
+          m.vulnId,
+          m.pkgName,
+          m.pkgVersion,
+          m.pkgType,
+          m.pkgSource,
+          m.purl,
+          m.location,
+          m.severity,
+          m.cvss,
+          m.epss,
+          m.epssPercentile,
+          m.kev ? 1 : 0,
+          m.kevDue,
+          m.ransomware ? 1 : 0,
+          m.risk,
+          m.fixState,
+          m.fixedVersion,
+          m.description,
+          m.dataSource,
+          JSON.stringify(m.aliases),
+          at,
+          at,
         );
       }
       // Whatever matched before but not now is fixed, or no longer considered vulnerable.
       db.prepare("UPDATE findings SET resolved_at = ? WHERE asset_id = ? AND resolved_at IS NULL AND last_seen <> ?").run(at, assetId, at);
-      db.prepare("UPDATE assets SET match_status = 'done', match_error = NULL, matched_at = ?, distro = COALESCE(?, distro) WHERE id = ?").run(at, distro, assetId);
+      db.prepare("UPDATE assets SET match_status = 'done', match_error = NULL, matched_at = ?, distro = COALESCE(?, distro) WHERE id = ?").run(
+        at,
+        distro,
+        assetId,
+      );
       db.exec("COMMIT");
     } catch (err) {
       db.exec("ROLLBACK");
@@ -172,7 +204,10 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
     if (!row) return; // deleted while queued
     if (!feedChecked) await refreshFeed();
     if (!feed) {
-      db.prepare("UPDATE assets SET match_status = 'queued', match_error = ? WHERE id = ?").run("Waiting for vulnerability data to be downloaded or imported.", assetId);
+      db.prepare("UPDATE assets SET match_status = 'queued', match_error = ? WHERE id = ?").run(
+        "Waiting for vulnerability data to be downloaded or imported.",
+        assetId,
+      );
       return;
     }
     db.prepare("UPDATE assets SET match_status = 'matching' WHERE id = ?").run(assetId);
@@ -254,7 +289,9 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
       fixable: counts?.fixable ?? 0,
       createdAt: r.created_at,
       ...(r.kind === "host" && {
-        agent: r.a_version ? { version: r.a_version, platform: r.a_platform, lastSeen: r.a_last_seen, lastScanAt: r.a_last_scan_at, lastError: r.a_last_error } : null,
+        agent: r.a_version
+          ? { version: r.a_version, platform: r.a_platform, lastSeen: r.a_last_seen, lastScanAt: r.a_last_scan_at, lastError: r.a_last_error }
+          : null,
       }),
     };
   }
@@ -285,13 +322,13 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
       const existing = db.prepare("SELECT id FROM assets WHERE kind = ? AND name = ?").get(kind, name) as { id: string } | undefined;
       const id = existing?.id ?? randomUUID();
       if (existing) {
-        db.prepare("UPDATE assets SET sbom = ?, sbom_format = ?, sbom_at = ?, packages = ?, distro = COALESCE(?, distro), match_status = 'queued', match_error = NULL WHERE id = ?").run(
-          sbom, info.format, at, info.packages, info.distro, id,
-        );
+        db.prepare(
+          "UPDATE assets SET sbom = ?, sbom_format = ?, sbom_at = ?, packages = ?, distro = COALESCE(?, distro), match_status = 'queued', match_error = NULL WHERE id = ?",
+        ).run(sbom, info.format, at, info.packages, info.distro, id);
       } else {
-        db.prepare("INSERT INTO assets (id, kind, name, distro, packages, sbom, sbom_format, sbom_at, match_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?)").run(
-          id, kind, name, info.distro, info.packages, sbom, info.format, at, at,
-        );
+        db.prepare(
+          "INSERT INTO assets (id, kind, name, distro, packages, sbom, sbom_format, sbom_at, match_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?)",
+        ).run(id, kind, name, info.distro, info.packages, sbom, info.format, at, at);
       }
       if (kind === "host") db.prepare("UPDATE agents SET last_scan_at = ?, last_error = NULL WHERE id = ?").run(at, name);
       const done = enqueue(() => matchAsset(id)).then(() => asset(id));
@@ -301,7 +338,9 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
     listAssets(kind: string | null, cursor?: string, limit = 100): Page<ReturnType<typeof assetDto>> {
       if (kind !== null && kind !== "host" && kind !== "image") throw bad("kind must be host or image.");
       const offset = decodeCursor(cursor);
-      const rows = db.prepare(`${ASSET_SELECT} ${kind ? "WHERE a.kind = ?" : ""} ORDER BY a.kind, a.name LIMIT ? OFFSET ?`).all(...(kind ? [kind] : []), limit + 1, offset) as AssetRow[];
+      const rows = db
+        .prepare(`${ASSET_SELECT} ${kind ? "WHERE a.kind = ?" : ""} ORDER BY a.kind, a.name LIMIT ? OFFSET ?`)
+        .all(...(kind ? [kind] : []), limit + 1, offset) as AssetRow[];
       const page = rows.slice(0, limit);
       const counts = openCounts(page.map((r) => r.id));
       return { items: page.map((r) => assetDto(r, counts.get(r.id))), ...(rows.length > limit && { nextCursor: encodeCursor(offset + limit) }) };
@@ -349,7 +388,14 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
         epssPercentile: r.epss_percentile as number | null,
         knownExploited: r.kev === 1,
         risk: r.risk as number,
-        package: { name: r.pkg_name as string, source: r.pkg_source as string, version: r.pkg_version as string, type: r.pkg_type as string, purl: r.purl as string | null, location: r.location as string | null },
+        package: {
+          name: r.pkg_name as string,
+          source: r.pkg_source as string,
+          version: r.pkg_version as string,
+          type: r.pkg_type as string,
+          purl: r.purl as string | null,
+          location: r.location as string | null,
+        },
         fix: { state: r.fix_state as string, version: r.fixed_version as string | null },
         description: r.description as string | null,
         firstSeen: r.first_seen as string,
@@ -362,7 +408,9 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
     vulnerabilities(filter: VulnFilter, cursor?: string, limit = 100) {
       const offset = decodeCursor(cursor);
       const { sql, params } = groupedQuery(filter);
-      const rows = db.prepare(`${sql} ORDER BY kev DESC, risk DESC, rank DESC, cvss DESC, vuln_id, pkg_source LIMIT ? OFFSET ?`).all(...params, limit + 1, offset) as GroupRow[];
+      const rows = db
+        .prepare(`${sql} ORDER BY kev DESC, risk DESC, rank DESC, cvss DESC, vuln_id, pkg_source LIMIT ? OFFSET ?`)
+        .all(...params, limit + 1, offset) as GroupRow[];
       return { items: rows.slice(0, limit).map(groupDto), ...(rows.length > limit && { nextCursor: encodeCursor(offset + limit) }) };
     },
 
@@ -390,7 +438,14 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
         dataSource: top.data_source as string | null,
         affected: rows.map((r) => ({
           asset: { id: r.asset_id as string, kind: r.kind as Kind, name: r.name as string },
-          package: { name: r.pkg_name as string, source: r.pkg_source as string, version: r.pkg_version as string, type: r.pkg_type as string, purl: r.purl as string | null, location: r.location as string | null },
+          package: {
+            name: r.pkg_name as string,
+            source: r.pkg_source as string,
+            version: r.pkg_version as string,
+            type: r.pkg_type as string,
+            purl: r.purl as string | null,
+            location: r.location as string | null,
+          },
           fix: { state: r.fix_state as string, version: r.fixed_version as string | null },
           excepted: r.excepted === 1,
           firstSeen: r.first_seen as string,
@@ -422,7 +477,9 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
     // ---- Exceptions
 
     listExceptions() {
-      const rows = db.prepare("SELECT e.*, a.kind, a.name FROM exceptions e LEFT JOIN assets a ON a.id = e.asset_id ORDER BY e.expires_at").all() as Array<Record<string, any>>;
+      const rows = db.prepare("SELECT e.*, a.kind, a.name FROM exceptions e LEFT JOIN assets a ON a.id = e.asset_id ORDER BY e.expires_at").all() as Array<
+        Record<string, any>
+      >;
       const at = now();
       return rows.map((r) => ({
         id: r.id as string,
@@ -437,8 +494,10 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
 
     createException(b: Record<string, unknown>) {
       const { vulnerability, assetId, reason, expiresAt } = b;
-      if (typeof vulnerability !== "string" || !VULN_ID.test(vulnerability)) throw bad("vulnerability must be an id such as CVE-2024-6387 or GHSA-xxxx-xxxx-xxxx.");
-      if (assetId != null && (typeof assetId !== "string" || !db.prepare("SELECT 1 FROM assets WHERE id = ?").get(assetId))) throw bad("assetId must be an existing asset, or omitted for every asset.");
+      if (typeof vulnerability !== "string" || !VULN_ID.test(vulnerability))
+        throw bad("vulnerability must be an id such as CVE-2024-6387 or GHSA-xxxx-xxxx-xxxx.");
+      if (assetId != null && (typeof assetId !== "string" || !db.prepare("SELECT 1 FROM assets WHERE id = ?").get(assetId)))
+        throw bad("assetId must be an existing asset, or omitted for every asset.");
       if (typeof reason !== "string" || reason.trim().length < 3 || reason.length > 500) throw bad("reason must say why, in 3 to 500 characters.");
       const expires = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
       if (Number.isNaN(expires) || expires <= Date.now() || expires > Date.now() + MAX_EXCEPTION_DAYS * 86_400_000) {
@@ -446,7 +505,12 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
       }
       const id = randomUUID();
       db.prepare("INSERT INTO exceptions (id, vuln_id, asset_id, reason, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)").run(
-        id, vulnerability, (assetId as string | undefined) ?? null, reason.trim(), now(), new Date(expires).toISOString(),
+        id,
+        vulnerability,
+        (assetId as string | undefined) ?? null,
+        reason.trim(),
+        now(),
+        new Date(expires).toISOString(),
       );
       return this.listExceptions().find((e) => e.id === id)!;
     },
@@ -526,7 +590,9 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
     },
 
     severityTotals() {
-      const rows = db.prepare(`SELECT f.severity, COUNT(*) AS n FROM findings f WHERE f.resolved_at IS NULL AND NOT ${EXCEPTED} GROUP BY f.severity`).all(now()) as Array<{ severity: Severity; n: number }>;
+      const rows = db
+        .prepare(`SELECT f.severity, COUNT(*) AS n FROM findings f WHERE f.resolved_at IS NULL AND NOT ${EXCEPTED} GROUP BY f.severity`)
+        .all(now()) as Array<{ severity: Severity; n: number }>;
       const out = zero();
       for (const r of rows) out[r.severity] = r.n;
       return out;

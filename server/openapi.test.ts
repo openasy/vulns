@@ -45,7 +45,9 @@ async function call(method: string, path: string, init: RequestInit = {}, concre
   // A response is either inline or a $ref to components/responses; build the JSON pointer to its schema either way.
   const shared = declared!.$ref?.split("/").pop();
   const response = shared ? spec.components.responses[shared]! : declared!;
-  const at = shared ? `openapi#/components/responses/${shared}` : `openapi#/paths/${path.replaceAll("/", "~1")}/${method.toLowerCase()}/responses/${res.status}`;
+  const at = shared
+    ? `openapi#/components/responses/${shared}`
+    : `openapi#/paths/${path.replaceAll("/", "~1")}/${method.toLowerCase()}/responses/${res.status}`;
 
   if (!response.content) {
     expect(res.headers.get("content-length") ?? "0", `${method} ${path} ${res.status} should have no body`).toBe("0");
@@ -61,7 +63,10 @@ async function call(method: string, path: string, init: RequestInit = {}, concre
   return { res, body };
 }
 
-const auth = (token: string, body?: string, type = "application/json") => ({ headers: { authorization: `Bearer ${token}`, "content-type": type }, ...(body !== undefined && { body }) });
+const auth = (token: string, body?: string, type = "application/json") => ({
+  headers: { authorization: `Bearer ${token}`, "content-type": type },
+  ...(body !== undefined && { body }),
+});
 const admin = (body?: unknown) => auth(ADMIN_TOKEN, body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body));
 const ingest = (body?: string) => auth(INGEST_TOKEN, body);
 const inDays = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString();
@@ -103,7 +108,8 @@ describe("responses match openapi.json", () => {
   it("SBOMs: matched, queued, and every refusal", async () => {
     host = ((await call("POST", "/api/v1/sboms", ingest(sbom(...ALL_PACKAGES)), "/api/v1/sboms?kind=host&name=web-1&wait=true")).body as { id: string }).id;
     await call("POST", "/api/v1/sboms", ingest(sbom(...ALL_PACKAGES)), "/api/v1/sboms?kind=host&name=web-1&wait=true");
-    image = ((await call("POST", "/api/v1/sboms", ingest(sbom("perl-base")), "/api/v1/sboms?kind=image&name=ghcr.io/acme/app:1.4.2")).body as { id: string }).id;
+    image = ((await call("POST", "/api/v1/sboms", ingest(sbom("perl-base")), "/api/v1/sboms?kind=image&name=ghcr.io/acme/app:1.4.2")).body as { id: string })
+      .id;
     await app.vulns.enqueue(async () => {});
     await call("POST", "/api/v1/sboms", ingest("{not json"), "/api/v1/sboms?kind=image&name=app");
     await call("POST", "/api/v1/sboms", ingest(JSON.stringify({ hello: 1 })), "/api/v1/sboms?kind=image&name=app");
@@ -156,7 +162,9 @@ describe("responses match openapi.json", () => {
   });
 
   it("exceptions", async () => {
-    const ex = (await call("POST", "/api/v1/exceptions", admin({ vulnerability: "CVE-2023-4911", assetId: host, reason: "No setuid binaries", expiresAt: inDays(30) }))).body as { id: string };
+    const ex = (
+      await call("POST", "/api/v1/exceptions", admin({ vulnerability: "CVE-2023-4911", assetId: host, reason: "No setuid binaries", expiresAt: inDays(30) }))
+    ).body as { id: string };
     await call("POST", "/api/v1/exceptions", admin({ vulnerability: "CVE-2023-6780", reason: "Accepted for every asset", expiresAt: inDays(90) }));
     await call("POST", "/api/v1/exceptions", admin({ vulnerability: "CVE-2023-6780", reason: "x", expiresAt: inDays(90) }));
     await call("POST", "/api/v1/exceptions", admin("nope"));
@@ -165,7 +173,11 @@ describe("responses match openapi.json", () => {
     await call("GET", "/api/v1/assets/{id}/findings", admin(), `/api/v1/assets/${host}/findings?status=excepted`);
     await call("DELETE", "/api/v1/exceptions/{id}", admin(), `/api/v1/exceptions/${ex.id}`);
     await call("DELETE", "/api/v1/exceptions/{id}", admin(), "/api/v1/exceptions/missing");
-    for (const [m, p] of [["GET", "/api/v1/exceptions"], ["POST", "/api/v1/exceptions"]] as const) await call(m, p, { method: m });
+    for (const [m, p] of [
+      ["GET", "/api/v1/exceptions"],
+      ["POST", "/api/v1/exceptions"],
+    ] as const)
+      await call(m, p, { method: m });
   });
 
   it("vulnerability data", async () => {

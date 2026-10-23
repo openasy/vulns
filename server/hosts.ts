@@ -56,17 +56,22 @@ export function parseHosts(text: string): HostEntry[] {
     seen.add(h.name.toLowerCase());
     const where = `${at} (${h.name})`;
     if (typeof h.address !== "string" || !ADDRESS.test(h.address)) throw new Error(`${where}.address is required: a host name or IP address.`);
-    if (h.port !== undefined && (!Number.isInteger(h.port) || (h.port as number) < 1 || (h.port as number) > 65535)) throw new Error(`${where}.port is 1 to 65535.`);
+    if (h.port !== undefined && (!Number.isInteger(h.port) || (h.port as number) < 1 || (h.port as number) > 65535))
+      throw new Error(`${where}.port is 1 to 65535.`);
     if (h.user !== undefined && (typeof h.user !== "string" || !USER.test(h.user))) throw new Error(`${where}.user is a Unix account name.`);
     if (h.auth !== undefined && h.auth !== "certificate" && h.auth !== "key") throw new Error(`${where}.auth is certificate or key.`);
     if (h.containers !== undefined && typeof h.containers !== "boolean") throw new Error(`${where}.containers is true or false.`);
     for (const k of ["jump", "agent"] as const) {
-      if (h[k] !== undefined && h[k] !== null && (typeof h[k] !== "string" || !NAME.test(h[k] as string))) throw new Error(`${where}.${k} is a name: letters, digits, dots, dashes and underscores, up to 63.`);
+      if (h[k] !== undefined && h[k] !== null && (typeof h[k] !== "string" || !NAME.test(h[k] as string)))
+        throw new Error(`${where}.${k} is a name: letters, digits, dots, dashes and underscores, up to 63.`);
     }
     if (h.hostKey !== undefined && h.hostKey !== null && (typeof h.hostKey !== "string" || !FINGERPRINT.test(h.hostKey))) {
       throw new Error(`${where}.hostKey is a fingerprint as ssh-keygen -lf prints it, such as SHA256:${"A".repeat(43)}.`);
     }
-    if (h.tags !== undefined && (!isObj(h.tags) || Object.keys(h.tags).length > 32 || Object.entries(h.tags).some(([k, v]) => !TAG.test(k) || typeof v !== "string" || v.length > 128))) {
+    if (
+      h.tags !== undefined &&
+      (!isObj(h.tags) || Object.keys(h.tags).length > 32 || Object.entries(h.tags).some(([k, v]) => !TAG.test(k) || typeof v !== "string" || v.length > 128))
+    ) {
       throw new Error(`${where}.tags is a map of up to 32 name: value texts, such as { env: prod }.`);
     }
     return {
@@ -126,7 +131,11 @@ export interface HostsFileState {
  * whose agent is not enrolled yet, the same list is applied again at every check, so it is picked up once it can be.
  * A file that cannot be read or applied leaves the last good list in place. `stop()` ends the polling.
  */
-export function watchHosts(path: string, apply: (hosts: HostEntry[]) => string[], { everyMs = 60_000, onChange }: { everyMs?: number; onChange?: (state: HostsFileState) => void } = {}) {
+export function watchHosts(
+  path: string,
+  apply: (hosts: HostEntry[]) => string[],
+  { everyMs = 60_000, onChange }: { everyMs?: number; onChange?: (state: HostsFileState) => void } = {},
+) {
   const state: HostsFileState = { path, appliedAt: null, entries: 0, error: null, warnings: [] };
   let seen = "";
   const read = () => {
@@ -138,7 +147,7 @@ export function watchHosts(path: string, apply: (hosts: HostEntry[]) => string[]
       stamp = `${st.size}:${st.mtimeMs}:${createHash("sha256").update(text).digest("hex")}`;
     } catch (err) {
       const error = `Cannot read ${path}: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}`;
-      if (state.error !== error) (state.error = error), onChange?.(state);
+      if (state.error !== error) ((state.error = error), onChange?.(state));
       return;
     }
     if (stamp === seen && !state.warnings.length) return;

@@ -15,12 +15,12 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     ports:
-      - "127.0.0.1:8080:8080"   # UI and API; put a TLS proxy in front to reach it from elsewhere
+      - "127.0.0.1:8080:8080" # UI and API; put a TLS proxy in front to reach it from elsewhere
     volumes:
-      - vulns-data:/data   # SQLite database, SBOMs and the vulnerability data
+      - vulns-data:/data # SQLite database, SBOMs and the vulnerability data
       # - ./hosts.yaml:/config/hosts.yaml:ro   # the install's servers, to see which ones have no scan
     secrets:
-      - openasy-kek   # mounted at /run/secrets/openasy-kek
+      - openasy-kek # mounted at /run/secrets/openasy-kek
     environment:
       # The install's hosts file (ADR 0052), to list servers with no scan:
       # OPENASY_HOSTS: /config/hosts.yaml
@@ -41,9 +41,9 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     tmpfs: [/tmp]
-    hostname: ${HOSTNAME:-host}   # the name this host gets in vulns
+    hostname: ${HOSTNAME:-host} # the name this host gets in vulns
     volumes:
-      - /:/host:ro   # read-only: the agent lists packages, it never changes the host
+      - /:/host:ro # read-only: the agent lists packages, it never changes the host
     environment:
       VULNS_URL: http://vulns:8080
       VULNS_INGEST_TOKEN: ${VULNS_INGEST_TOKEN:?set VULNS_INGEST_TOKEN}

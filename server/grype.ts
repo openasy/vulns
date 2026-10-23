@@ -66,10 +66,11 @@ const str = (v: unknown, max = 512) => (typeof v === "string" && v ? v.slice(0, 
 /** Highest CVSS base score among the vulnerability and its aliases. */
 function bestCvss(vulns: Raw[]): number | null {
   let best: number | null = null;
-  for (const v of vulns) for (const c of Array.isArray(v?.cvss) ? v.cvss : []) {
-    const s = num(c?.metrics?.baseScore);
-    if (s !== null && (best === null || s > best)) best = s;
-  }
+  for (const v of vulns)
+    for (const c of Array.isArray(v?.cvss) ? v.cvss : []) {
+      const s = num(c?.metrics?.baseScore);
+      if (s !== null && (best === null || s > best)) best = s;
+    }
   return best;
 }
 

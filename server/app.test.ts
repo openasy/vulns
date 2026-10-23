@@ -26,14 +26,32 @@ const upload = (kind: string, name: string, body: string, opts: { wait?: boolean
   });
 
 const get = async <T>(path: string) => (await (await app.admin(path)).json()) as T;
-type Vuln = { vulnerability: string; severity: string; knownExploited: boolean; hosts: number; images: number; fix: { state: string; version: string | null }; package: { name: string; versions: string[] } };
+type Vuln = {
+  vulnerability: string;
+  severity: string;
+  knownExploited: boolean;
+  hosts: number;
+  images: number;
+  fix: { state: string; version: string | null };
+  package: { name: string; versions: string[] };
+};
 
 describe("parseReport", () => {
   it("keeps what ranks a finding: severity, CVSS, EPSS, KEV, risk and the fix", () => {
     const { distro, matches } = parseReport(FIXTURE);
     expect(distro).toBe("debian 12.0");
     const kev = matches.find((m) => m.vulnId === "CVE-2023-4911")!;
-    expect(kev).toMatchObject({ pkgName: "libc-bin", pkgVersion: "2.36-9", pkgType: "deb", severity: "high", cvss: 7.8, kev: true, kevDue: "2023-12-12", fixState: "fixed", fixedVersion: "2.36-9+deb12u3" });
+    expect(kev).toMatchObject({
+      pkgName: "libc-bin",
+      pkgVersion: "2.36-9",
+      pkgType: "deb",
+      severity: "high",
+      cvss: 7.8,
+      kev: true,
+      kevDue: "2023-12-12",
+      fixState: "fixed",
+      fixedVersion: "2.36-9+deb12u3",
+    });
     expect(kev.epss).toBeGreaterThan(0.5);
     expect(kev.risk).toBeGreaterThan(50);
     expect(matches.find((m) => m.vulnId === "CVE-2025-13151")).toMatchObject({ fixState: "wont-fix", fixedVersion: null, kev: false });
@@ -48,7 +66,11 @@ describe("parseReport", () => {
 describe("inspectSbom", () => {
   it("reads Syft, CycloneDX and SPDX", () => {
     expect(inspectSbom(JSON.parse(sbom("a", "b")))).toEqual({ format: "syft-json", packages: 2, distro: "Debian GNU/Linux 12 (bookworm)" });
-    expect(inspectSbom({ bomFormat: "CycloneDX", components: [{ type: "operating-system", name: "alpine", version: "3.22" }, { type: "library" }] })).toEqual({ format: "cyclonedx-json", packages: 1, distro: "alpine 3.22" });
+    expect(inspectSbom({ bomFormat: "CycloneDX", components: [{ type: "operating-system", name: "alpine", version: "3.22" }, { type: "library" }] })).toEqual({
+      format: "cyclonedx-json",
+      packages: 1,
+      distro: "alpine 3.22",
+    });
     expect(inspectSbom({ spdxVersion: "SPDX-2.3", packages: [{}, {}, {}] })).toEqual({ format: "spdx-json", packages: 3, distro: null });
     expect(() => inspectSbom({ hello: "world" })).toThrow(/Syft JSON, CycloneDX JSON or SPDX JSON/);
   });
@@ -126,7 +148,11 @@ function browser(base: string) {
   return async (path: string, init: { method?: string; body?: unknown; origin?: string } = {}) => {
     const res = await fetch(base + path, {
       method: init.method ?? (init.body === undefined ? "GET" : "POST"),
-      headers: { origin: init.origin ?? base, cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; "), ...(init.body !== undefined && { "content-type": "application/json" }) },
+      headers: {
+        origin: init.origin ?? base,
+        cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; "),
+        ...(init.body !== undefined && { "content-type": "application/json" }),
+      },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
     for (const c of res.headers.getSetCookie()) {
@@ -180,7 +206,7 @@ describe("sign-in and roles", () => {
     const { secret } = (await (await o("/api/v1/auth/me/totp", { body: {} })).json()) as { secret: string };
     await o("/api/v1/auth/me/totp/confirm", { body: { code: totpNow(secret) } });
     await upload("host", "web-1", sbom(...ALL_PACKAGES));
-    const assetId = ((await get<{ assets: Array<{ id: string }> }>("/api/v1/assets")).assets[0]!).id;
+    const assetId = (await get<{ assets: Array<{ id: string }> }>("/api/v1/assets")).assets[0]!.id;
     const exception = { vulnerability: "CVE-2023-4911", reason: "not reachable", expiresAt: new Date(Date.now() + 86_400_000).toISOString() };
 
     const viewer = await member(o, "vic@example.com", "viewer");
@@ -220,12 +246,34 @@ describe("SBOMs and findings", () => {
   it("matches an SBOM and ranks known exploited vulnerabilities first", async () => {
     const res = await upload("host", "web-1", sbom(...ALL_PACKAGES));
     expect(res.status).toBe(201);
-    const asset = (await res.json()) as { id: string; kind: string; distro: string; packages: number; match: { status: string }; open: Record<string, number>; knownExploited: number; fixable: number };
-    expect(asset).toMatchObject({ kind: "host", distro: "debian 12.0", packages: ALL_PACKAGES.length, match: { status: "done" }, knownExploited: 1, fixable: 2 });
+    const asset = (await res.json()) as {
+      id: string;
+      kind: string;
+      distro: string;
+      packages: number;
+      match: { status: string };
+      open: Record<string, number>;
+      knownExploited: number;
+      fixable: number;
+    };
+    expect(asset).toMatchObject({
+      kind: "host",
+      distro: "debian 12.0",
+      packages: ALL_PACKAGES.length,
+      match: { status: "done" },
+      knownExploited: 1,
+      fixable: 2,
+    });
     expect(asset.open).toMatchObject({ high: 3, medium: 1 });
 
     const { vulnerabilities } = await get<{ vulnerabilities: Vuln[] }>("/api/v1/vulnerabilities");
-    expect(vulnerabilities[0]).toMatchObject({ vulnerability: "CVE-2023-4911", knownExploited: true, hosts: 1, images: 0, fix: { state: "fixed", version: "2.36-9+deb12u3" } });
+    expect(vulnerabilities[0]).toMatchObject({
+      vulnerability: "CVE-2023-4911",
+      knownExploited: true,
+      hosts: 1,
+      images: 0,
+      fix: { state: "fixed", version: "2.36-9+deb12u3" },
+    });
     expect(vulnerabilities).toHaveLength(4);
   });
 
@@ -234,7 +282,7 @@ describe("SBOMs and findings", () => {
     expect(res.status).toBe(202);
     const { id } = (await res.json()) as { id: string };
     await app.vulns.enqueue(async () => {});
-    expect(((await get<{ match: { status: string } }>(`/api/v1/assets/${id}`)).match.status)).toBe("done");
+    expect((await get<{ match: { status: string } }>(`/api/v1/assets/${id}`)).match.status).toBe("done");
   });
 
   it("groups one vulnerability across hosts and images", async () => {
@@ -242,7 +290,14 @@ describe("SBOMs and findings", () => {
     await upload("host", "web-2", sbom("libc-bin"));
     await upload("image", "app:1", sbom("libc-bin"));
     const { vulnerabilities } = await get<{ vulnerabilities: Vuln[] }>("/api/v1/vulnerabilities?kev=true");
-    expect(vulnerabilities).toEqual([expect.objectContaining({ vulnerability: "CVE-2023-4911", hosts: 2, images: 1, package: { name: "glibc", type: "deb", packages: ["libc-bin"], versions: ["2.36-9"] } })]);
+    expect(vulnerabilities).toEqual([
+      expect.objectContaining({
+        vulnerability: "CVE-2023-4911",
+        hosts: 2,
+        images: 1,
+        package: { name: "glibc", type: "deb", packages: ["libc-bin"], versions: ["2.36-9"] },
+      }),
+    ]);
 
     const detail = await get<{ affected: Array<{ asset: { name: string } }> }>("/api/v1/vulnerabilities/CVE-2023-4911");
     expect(detail.affected.map((a) => a.asset.name)).toEqual(["web-1", "web-2", "app:1"]);
@@ -251,7 +306,8 @@ describe("SBOMs and findings", () => {
   it("filters by severity, fix, kind and text", async () => {
     await upload("host", "web-1", sbom(...ALL_PACKAGES));
     await upload("image", "app:1", sbom("perl-base"));
-    const ids = async (q: string) => (await get<{ vulnerabilities: Vuln[] }>(`/api/v1/vulnerabilities?${q}`)).vulnerabilities.map((v) => v.vulnerability).sort();
+    const ids = async (q: string) =>
+      (await get<{ vulnerabilities: Vuln[] }>(`/api/v1/vulnerabilities?${q}`)).vulnerabilities.map((v) => v.vulnerability).sort();
     expect(await ids("severity=medium")).toEqual(["CVE-2023-6780"]);
     expect(await ids("fixable=true")).toEqual(["CVE-2023-4911", "CVE-2023-6780"]);
     expect(await ids("kind=image")).toEqual(["CVE-2026-82560"]);
@@ -323,8 +379,15 @@ describe("SBOMs and findings", () => {
   it("keeps SBOMs until vulnerability data exists, then matches them", async () => {
     const matcher = fakeMatcher(null);
     const late = await startApp({ version: "1.2.3", matcher });
-    const res = await fetch(`${late.base}/api/v1/sboms?kind=host&name=web-1&wait=true`, { method: "POST", headers: { authorization: `Bearer ${INGEST_TOKEN}` }, body: sbom(...ALL_PACKAGES) });
-    expect(((await res.json()) as { match: { status: string; error: string } }).match).toMatchObject({ status: "queued", error: expect.stringContaining("Waiting for vulnerability data") });
+    const res = await fetch(`${late.base}/api/v1/sboms?kind=host&name=web-1&wait=true`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${INGEST_TOKEN}` },
+      body: sbom(...ALL_PACKAGES),
+    });
+    expect(((await res.json()) as { match: { status: string; error: string } }).match).toMatchObject({
+      status: "queued",
+      error: expect.stringContaining("Waiting for vulnerability data"),
+    });
     await late.vulns.updateFeed();
     await late.vulns.enqueue(async () => {});
     await new Promise((r) => setTimeout(r, 10));
@@ -342,7 +405,10 @@ describe("exceptions", () => {
   it("hides a vulnerability on one asset until it expires", async () => {
     const web1 = (await (await upload("host", "web-1", sbom("libc-bin"))).json()) as { id: string };
     await upload("host", "web-2", sbom("libc-bin"));
-    const res = await app.admin("/api/v1/exceptions", { method: "POST", body: JSON.stringify({ vulnerability: "CVE-2023-4911", assetId: web1.id, reason: "No setuid binaries on this host", expiresAt: inDays(30) }) });
+    const res = await app.admin("/api/v1/exceptions", {
+      method: "POST",
+      body: JSON.stringify({ vulnerability: "CVE-2023-4911", assetId: web1.id, reason: "No setuid binaries on this host", expiresAt: inDays(30) }),
+    });
     expect(res.status).toBe(201);
     const ex = (await res.json()) as { id: string; active: boolean; asset: { name: string } };
     expect(ex).toMatchObject({ active: true, asset: { name: "web-1" } });
@@ -370,7 +436,11 @@ describe("exceptions", () => {
 
 describe("agents", () => {
   const beat = (body: unknown, token = INGEST_TOKEN) =>
-    fetch(`${app.base}/api/v1/agents/heartbeat`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+    fetch(`${app.base}/api/v1/agents/heartbeat`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
   it("refuses an agent of another version", async () => {
     const res = await beat({ id: "web-1", version: "1.1.0" });

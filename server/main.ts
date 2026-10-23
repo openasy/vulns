@@ -54,7 +54,9 @@ let hosts: HostEntry[] = [];
 const hostsFile = hostsPath
   ? watchHosts(hostsPath, (list) => ((hosts = list), []), {
       onChange: (s) =>
-        s.error ? log("error", "hosts file not applied; its last good version stays", { path: s.path, error: s.error }) : log("info", "hosts file applied", { path: s.path, entries: s.entries }),
+        s.error
+          ? log("error", "hosts file not applied; its last good version stays", { path: s.path, error: s.error })
+          : log("info", "hosts file applied", { path: s.path, entries: s.entries }),
     })
   : undefined;
 const products = parseProducts(process.env.OPENASY_PRODUCTS);
@@ -80,12 +82,15 @@ const metricsServer = metricsPort !== undefined ? createServer(createMetricsHand
 metricsServer?.listen(metricsPort, () => log("info", "metrics on their own port", { port: metricsPort }));
 
 server.listen(port, () => log("info", "vulns started", { version, port, db: dbPath, feed: feedDir, headless, feedUpdateHours: updateHours }));
-if (process.env.VULNS_ADMIN_TOKEN) log("warn", "VULNS_ADMIN_TOKEN is deprecated: it is one shared admin token without an expiry. Create API tokens under Settings and remove it");
-if (!process.env.VULNS_INGEST_TOKEN) log("warn", "VULNS_INGEST_TOKEN is not set; vulns-agent cannot send SBOMs, and CI needs an API token with the editor role");
+if (process.env.VULNS_ADMIN_TOKEN)
+  log("warn", "VULNS_ADMIN_TOKEN is deprecated: it is one shared admin token without an expiry. Create API tokens under Settings and remove it");
+if (!process.env.VULNS_INGEST_TOKEN)
+  log("warn", "VULNS_INGEST_TOKEN is not set; vulns-agent cannot send SBOMs, and CI needs an API token with the editor role");
 if (!publicUrl.startsWith("https://") && !/^http:\/\/(localhost|127\.0\.0\.1)(:|$)/.test(publicUrl)) {
   log("warn", "VULNS_PUBLIC_URL is not https: browsers will not keep secure cookies or allow passkeys. Put vulns behind TLS (ADR 0026)", { url: publicUrl });
 }
-if (auth.secretsInClear) log("warn", "no secrets key: TOTP secrets are stored unencrypted. Mount a 32-byte key (openssl rand -hex 32)", { file: secretsKeyFile });
+if (auth.secretsInClear)
+  log("warn", "no secrets key: TOTP secrets are stored unencrypted. Mount a 32-byte key (openssl rand -hex 32)", { file: secretsKeyFile });
 const setup = auth.setupLink();
 // No default password (ADR 0013): the first person to open this link becomes the owner.
 if (setup) log("info", "no owner yet: open this link once to create the owner account", { url: setup });

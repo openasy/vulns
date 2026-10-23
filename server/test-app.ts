@@ -14,11 +14,18 @@ export const INGEST_TOKEN = "test-ingest-token";
 export const ADMIN_TOKEN = "test-admin-token";
 
 /** Real `grype -o json` output for debian:12.0, cut down to four matches. */
-export const FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/grype-debian-12.json", import.meta.url), "utf8")) as { matches: Array<{ artifact: { name: string } }> };
+export const FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/grype-debian-12.json", import.meta.url), "utf8")) as {
+  matches: Array<{ artifact: { name: string } }>;
+};
 
 /** A Syft SBOM listing these packages. */
 export const sbom = (...packages: string[]) =>
-  JSON.stringify({ descriptor: { name: "syft" }, schema: { version: "16.0.0" }, distro: { prettyName: "Debian GNU/Linux 12 (bookworm)" }, artifacts: packages.map((name) => ({ name })) });
+  JSON.stringify({
+    descriptor: { name: "syft" },
+    schema: { version: "16.0.0" },
+    distro: { prettyName: "Debian GNU/Linux 12 (bookworm)" },
+    artifacts: packages.map((name) => ({ name })),
+  });
 export const ALL_PACKAGES = [...new Set(FIXTURE.matches.map((m) => m.artifact.name))];
 
 /** Matches the packages an SBOM lists against the fixture, so dropping a package resolves its findings. */

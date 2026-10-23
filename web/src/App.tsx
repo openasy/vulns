@@ -33,7 +33,23 @@ import {
   useAgo,
 } from "@openasy/ui";
 import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAuth } from "@openasy/auth/react";
-import { Boxes, Download, KeyRound, LogIn, LogOut, Play, RefreshCw, Server, Settings2, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
+import {
+  Boxes,
+  Download,
+  KeyRound,
+  LogIn,
+  LogOut,
+  Play,
+  RefreshCw,
+  Server,
+  Settings2,
+  ShieldOff,
+  Trash2,
+  TriangleAlert,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   api,
@@ -47,7 +63,8 @@ import {
   type Kind,
   type ProductLink,
   type Severity,
-  type HostsCoverage, type Summary,
+  type HostsCoverage,
+  type Summary,
   type Vulnerability,
   type VulnerabilityDetail,
 } from "./api.ts";
@@ -122,7 +139,8 @@ function NoFeed({ feed }: { feed: Feed | undefined }) {
     if (feed?.ageHours != null && feed.ageHours > 72) {
       return (
         <Callout tone="warning" title={t("noFeed.vulnerabilityDataIsDaysOld", { value: Math.round(feed.ageHours / 24) })}>
-          {t("noFeed.newVulnerabilitiesAreMissingUntil")}{" "}{feed.error ? t("noFeed.lastUpdateFailed", { error: feed.error }) : ""} {t("noFeed.see")}{" "}<a href="/setup">{t("noFeed.setup")}</a>.
+          {t("noFeed.newVulnerabilitiesAreMissingUntil")} {feed.error ? t("noFeed.lastUpdateFailed", { error: feed.error }) : ""} {t("noFeed.see")}{" "}
+          <a href="/setup">{t("noFeed.setup")}</a>.
         </Callout>
       );
     }
@@ -138,7 +156,8 @@ function NoFeed({ feed }: { feed: Feed | undefined }) {
     </Callout>
   );
 }
-const affected = (t: T, v: Vulnerability) => [v.hosts && t("plurals.host", { count: v.hosts }), v.images && t("plurals.image", { count: v.images })].filter(Boolean).join(" · ");
+const affected = (t: T, v: Vulnerability) =>
+  [v.hosts && t("plurals.host", { count: v.hosts }), v.images && t("plurals.image", { count: v.images })].filter(Boolean).join(" · ");
 const rowId = (v: Vulnerability) => `${v.vulnerability}|${v.package.type}|${v.package.name}`;
 
 type Tab = "open" | "excepted";
@@ -164,7 +183,12 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
     try {
       await call("/api/v1/exceptions", {
         method: "POST",
-        body: JSON.stringify({ vulnerability: id, reason, expiresAt: new Date(Date.now() + Number(days) * 86_400_000).toISOString(), ...(scope !== "all" && { assetId: scope }) }),
+        body: JSON.stringify({
+          vulnerability: id,
+          reason,
+          expiresAt: new Date(Date.now() + Number(days) * 86_400_000).toISOString(),
+          ...(scope !== "all" && { assetId: scope }),
+        }),
       });
       close();
       onChanged();
@@ -192,7 +216,12 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
             <SeverityBadge severity={ui(detail.severity)} />
             {detail.cvss !== null && <Badge mono>CVSS {detail.cvss.toFixed(1)}</Badge>}
             <Badge mono>EPSS {pct(detail.epss)}</Badge>
-            {detail.knownExploited && <StatusBadge tone="danger">{t("vulnPanel.inCisaKev")}{detail.kevDueDate ? t("vulnPanel.due", { kevDueDate: detail.kevDueDate }) : ""}</StatusBadge>}
+            {detail.knownExploited && (
+              <StatusBadge tone="danger">
+                {t("vulnPanel.inCisaKev")}
+                {detail.kevDueDate ? t("vulnPanel.due", { kevDueDate: detail.kevDueDate }) : ""}
+              </StatusBadge>
+            )}
             {detail.ransomware && <Badge tone="critical">{t("vulnPanel.usedByRansomware")}</Badge>}
           </div>
           {detail.description && <p className="m-0 text-fg-muted">{detail.description}</p>}
@@ -239,13 +268,22 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
               </>
             }
           >
-            <TextField label={t("vulnPanel.reason")} value={reason} onChange={(e) => setReason(e.target.value)} hint={t("vulnPanel.whyItIsAcceptableFor")} error={error} />
+            <TextField
+              label={t("vulnPanel.reason")}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              hint={t("vulnPanel.whyItIsAcceptableFor")}
+              error={error}
+            />
             <div className="grid grid-cols-2 gap-2">
               <SelectField
                 label={t("vulnPanel.on")}
                 value={scope}
                 onChange={(e) => setScope(e.target.value)}
-                options={[{ value: "all", label: t("vulnPanel.everyAsset") }, ...[...new Map(detail.affected.map((a) => [a.asset.id, a.asset.name]))].map(([value, label]) => ({ value, label }))]}
+                options={[
+                  { value: "all", label: t("vulnPanel.everyAsset") },
+                  ...[...new Map(detail.affected.map((a) => [a.asset.id, a.asset.name]))].map(([value, label]) => ({ value, label })),
+                ]}
               />
               <SelectField
                 label={t("vulnPanel.for")}
@@ -273,12 +311,20 @@ function HostsCoverageNote({ file }: { file?: HostsCoverage | null }) {
   if (file.error) {
     return (
       <Callout tone="danger" title={t("hostsCoverageNote.theHostsFileIsNot")}>
-        {t("hostsCoverageNote.itsLastGoodVersionIs", { error: file.error, path: file.path })}</Callout>
+        {t("hostsCoverageNote.itsLastGoodVersionIs", { error: file.error, path: file.path })}
+      </Callout>
     );
   }
   if (!file.missing.length) return null;
   return (
-    <Callout tone="warning" title={t("hostsCoverageNote.inTheHostsFileNo", { length: file.missing.length, value: file.missing.length === 1 ? "server" : "servers", value2: file.missing.length === 1 ? "has" : "have" })}>
+    <Callout
+      tone="warning"
+      title={t("hostsCoverageNote.inTheHostsFileNo", {
+        length: file.missing.length,
+        value: file.missing.length === 1 ? "server" : "servers",
+        value2: file.missing.length === 1 ? "has" : "have",
+      })}
+    >
       {file.missing.map((h) => h.name).join(", ")}. Install vulns-agent there, or check that it reports the server under its name or address.
     </Callout>
   );
@@ -312,7 +358,10 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
   );
 
   const load = useCallback(() => {
-    query().then((r) => (setRows(r.vulnerabilities), setMore(r.nextCursor)), () => setRows([]));
+    query().then(
+      (r) => (setRows(r.vulnerabilities), setMore(r.nextCursor)),
+      () => setRows([]),
+    );
   }, [query]);
   useEffect(load, [load]);
 
@@ -350,8 +399,22 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
         </span>
       ),
     },
-    { id: "affected", header: t("findingsPage.affected"), width: "140px", align: "right", cell: (v) => <span className="whitespace-nowrap">{affected(t, v)}</span> },
-    { id: "epss", header: "EPSS", width: "72px", align: "right", mono: true, description: t("findingsPage.probabilityOfExploitationInThe"), cell: (v) => pct(v.epss) },
+    {
+      id: "affected",
+      header: t("findingsPage.affected"),
+      width: "140px",
+      align: "right",
+      cell: (v) => <span className="whitespace-nowrap">{affected(t, v)}</span>,
+    },
+    {
+      id: "epss",
+      header: "EPSS",
+      width: "72px",
+      align: "right",
+      mono: true,
+      description: t("findingsPage.probabilityOfExploitationInThe"),
+      cell: (v) => pct(v.epss),
+    },
     {
       id: "context",
       header: t("findingsPage.context"),
@@ -359,7 +422,11 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
         <span className="flex flex-wrap gap-1">
           {v.knownExploited && <Badge tone="danger">{t("findingsPage.exploited")}</Badge>}
           {v.ransomware && <Badge tone="critical">{t("findingsPage.ransomware")}</Badge>}
-          {v.fix.state === "fixed" ? <Badge tone="success">{t("findingsPage.fixAvailable")}</Badge> : <Badge>{v.fix.state === "wont-fix" ? t("findingsPage.wonTFix") : t("findingsPage.noFixYet")}</Badge>}
+          {v.fix.state === "fixed" ? (
+            <Badge tone="success">{t("findingsPage.fixAvailable")}</Badge>
+          ) : (
+            <Badge>{v.fix.state === "wont-fix" ? t("findingsPage.wonTFix") : t("findingsPage.noFixYet")}</Badge>
+          )}
         </span>
       ),
     },
@@ -370,7 +437,15 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
     <>
       <PageHeader
         title={t("findingsPage.findings")}
-        description={s ? t("findingsPage.vulnerabilityDataOsAdvisoriesGithub", { plural: t("plurals.host", { count: s.assets.hosts }), plural2: t("plurals.image", { count: s.assets.images }), value: s.feed.built ? `built ${ago(s.feed.built)}` : "not downloaded yet" }) : undefined}
+        description={
+          s
+            ? t("findingsPage.vulnerabilityDataOsAdvisoriesGithub", {
+                plural: t("plurals.host", { count: s.assets.hosts }),
+                plural2: t("plurals.image", { count: s.assets.images }),
+                value: s.feed.built ? `built ${ago(s.feed.built)}` : "not downloaded yet",
+              })
+            : undefined
+        }
         actions={<SearchInput label={t("findingsPage.searchCveOrPackage")} className="w-64" value={q} onChange={(e) => setQ(e.target.value)} />}
       />
       <HostsCoverageNote file={s?.hostsFile} />
@@ -456,7 +531,7 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
               <EmptyState title={tab === "open" ? t("findingsPage.noOpenFindings") : t("findingsPage.noAcceptedRisks")}>
                 {s && s.assets.hosts + s.assets.images === 0 ? (
                   <>
-                    {t("findingsPage.nothingHasBeenScannedYet")}{" "}<a href="/setup">{t("findingsPage.setup")}</a> to add hosts and images.
+                    {t("findingsPage.nothingHasBeenScannedYet")} <a href="/setup">{t("findingsPage.setup")}</a> to add hosts and images.
                   </>
                 ) : (
                   t("findingsPage.nothingMatchesTheseFilters")
@@ -487,8 +562,18 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
 function MatchStatus({ a }: { a: Asset }) {
   const ago = useAgo();
   const t = useT();
-  if (a.match.status === "failed") return <StatusBadge tone="danger" title={a.match.error ?? undefined}>{t("matchStatus.failed")}</StatusBadge>;
-  if (a.match.status !== "done") return <StatusBadge tone="info" title={a.match.error ?? undefined}>{a.match.status === "matching" ? t("matchStatus.matching") : t("matchStatus.queued")}</StatusBadge>;
+  if (a.match.status === "failed")
+    return (
+      <StatusBadge tone="danger" title={a.match.error ?? undefined}>
+        {t("matchStatus.failed")}
+      </StatusBadge>
+    );
+  if (a.match.status !== "done")
+    return (
+      <StatusBadge tone="info" title={a.match.error ?? undefined}>
+        {a.match.status === "matching" ? t("matchStatus.matching") : t("matchStatus.queued")}
+      </StatusBadge>
+    );
   return <span className="text-xs text-fg-muted">{ago(a.match.matchedAt)}</span>;
 }
 
@@ -498,7 +583,11 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
   const [rows, setRows] = useState<Asset[]>();
   useEffect(() => {
     setRows(undefined);
-    const load = () => call<{ assets: Asset[] }>(`/api/v1/assets?kind=${kind}&limit=500`).then((r) => setRows(r.assets), () => setRows([]));
+    const load = () =>
+      call<{ assets: Asset[] }>(`/api/v1/assets?kind=${kind}&limit=500`).then(
+        (r) => setRows(r.assets),
+        () => setRows([]),
+      );
     load();
     const t = setInterval(load, 15_000);
     return () => clearInterval(t);
@@ -522,10 +611,27 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
         </span>
       ),
     },
-    { id: "open", header: msg("assetsPage.open"), sortValue: (a) => a.open.critical * 1e6 + a.open.high * 1e4 + a.open.medium * 100 + a.open.low, cell: (a) => <SevCounts counts={a.open} /> },
-    { id: "kev", header: msg("assetsPage.exploited"), align: "right", mono: true, sortValue: (a) => a.knownExploited, cell: (a) => (a.knownExploited ? <Badge tone="danger">{a.knownExploited}</Badge> : "0") },
+    {
+      id: "open",
+      header: msg("assetsPage.open"),
+      sortValue: (a) => a.open.critical * 1e6 + a.open.high * 1e4 + a.open.medium * 100 + a.open.low,
+      cell: (a) => <SevCounts counts={a.open} />,
+    },
+    {
+      id: "kev",
+      header: msg("assetsPage.exploited"),
+      align: "right",
+      mono: true,
+      sortValue: (a) => a.knownExploited,
+      cell: (a) => (a.knownExploited ? <Badge tone="danger">{a.knownExploited}</Badge> : "0"),
+    },
     { id: "fixable", header: msg("assetsPage.fixable"), align: "right", mono: true, sortValue: (a) => a.fixable, cell: (a) => a.fixable },
-    { id: "sbom", header: msg("assetsPage.lastSbom"), sortValue: (a) => a.sbom.receivedAt, cell: (a) => <span className="text-xs text-fg-muted">{ago(a.sbom.receivedAt)}</span> },
+    {
+      id: "sbom",
+      header: msg("assetsPage.lastSbom"),
+      sortValue: (a) => a.sbom.receivedAt,
+      cell: (a) => <span className="text-xs text-fg-muted">{ago(a.sbom.receivedAt)}</span>,
+    },
     { id: "match", header: msg("assetsPage.matched"), cell: (a) => <MatchStatus a={a} /> },
     ...(kind === "host"
       ? [
@@ -534,7 +640,10 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
             header: msg("assetsPage.agent"),
             cell: (a: Asset) =>
               a.agent ? (
-                <StatusBadge tone={a.agent.lastError ? "warning" : Date.now() - Date.parse(a.agent.lastSeen) > 5 * 60_000 ? "danger" : "success"} title={a.agent.lastError ?? undefined}>
+                <StatusBadge
+                  tone={a.agent.lastError ? "warning" : Date.now() - Date.parse(a.agent.lastSeen) > 5 * 60_000 ? "danger" : "success"}
+                  title={a.agent.lastError ?? undefined}
+                >
                   {a.agent.version} · {ago(a.agent.lastSeen)}
                 </StatusBadge>
               ) : (
@@ -564,7 +673,8 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
           pageSize={50}
           empty={
             <EmptyState title={kind === "host" ? msg("assetsPage.noHostsYet") : msg("assetsPage.noImagesYet")}>
-              {msg("assetsPage.see")}{" "}<a href="/setup">{msg("assetsPage.setup")}</a> {msg("assetsPage.forHowTo")}{" "}{kind === "host" ? msg("assetsPage.runVulnsAgentOnA") : msg("assetsPage.sendImageSbomsFromCi")}.
+              {msg("assetsPage.see")} <a href="/setup">{msg("assetsPage.setup")}</a> {msg("assetsPage.forHowTo")}{" "}
+              {kind === "host" ? msg("assetsPage.runVulnsAgentOnA") : msg("assetsPage.sendImageSbomsFromCi")}.
             </EmptyState>
           }
         />
@@ -589,13 +699,20 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
   }, [call, id]);
   useEffect(() => {
     setRows(undefined);
-    call<{ findings: Finding[] }>(`/api/v1/assets/${id}/findings?status=${tab}&limit=500`).then((r) => setRows(r.findings), () => setRows([]));
+    call<{ findings: Finding[] }>(`/api/v1/assets/${id}/findings?status=${tab}&limit=500`).then(
+      (r) => setRows(r.findings),
+      () => setRows([]),
+    );
   }, [call, id, tab]);
 
   if (asset === null) return <EmptyState title={t("assetPage.notFound")}>{t("assetPage.thisHostOrImageNo")}</EmptyState>;
   if (!asset) return null;
 
-  const scan = () => call(`/api/v1/assets/${id}/scan`, { method: "POST" }).then(() => setNote(t("assetPage.theAgentScansOnIts")), (e: Error) => setNote(e.message));
+  const scan = () =>
+    call(`/api/v1/assets/${id}/scan`, { method: "POST" }).then(
+      () => setNote(t("assetPage.theAgentScansOnIts")),
+      (e: Error) => setNote(e.message),
+    );
   const download = async () => {
     const res = await fetch(`/api/v1/assets/${id}/sbom`, { credentials: "same-origin" });
     const url = URL.createObjectURL(await res.blob());
@@ -637,15 +754,28 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
     },
     { id: "epss", header: "EPSS", align: "right", mono: true, cell: (f) => pct(f.epss) },
     { id: "kev", header: t("assetPage.context"), cell: (f) => (f.knownExploited ? <Badge tone="danger">{t("assetPage.exploited")}</Badge> : null) },
-    { id: "seen", header: tab === "resolved" ? t("assetPage.resolved") : t("assetPage.firstSeen"), cell: (f) => <span className="text-xs text-fg-muted">{ago(tab === "resolved" ? f.resolvedAt : f.firstSeen)}</span> },
+    {
+      id: "seen",
+      header: tab === "resolved" ? t("assetPage.resolved") : t("assetPage.firstSeen"),
+      cell: (f) => <span className="text-xs text-fg-muted">{ago(tab === "resolved" ? f.resolvedAt : f.firstSeen)}</span>,
+    },
   ];
 
   return (
     <>
       <PageHeader
         title={asset.name}
-        breadcrumbs={[{ label: asset.kind === "host" ? t("assetPage.hosts") : t("assetPage.images"), href: asset.kind === "host" ? "/hosts" : "/images" }, { label: asset.name }]}
-        description={t("assetPage.packagesSbom", { value: asset.agent?.platform === "kubernetes" ? "Kubernetes node · " : "", value2: asset.distro ?? "Unknown OS", packages: asset.packages, ago: ago(asset.sbom.receivedAt), format: asset.sbom.format })}
+        breadcrumbs={[
+          { label: asset.kind === "host" ? t("assetPage.hosts") : t("assetPage.images"), href: asset.kind === "host" ? "/hosts" : "/images" },
+          { label: asset.name },
+        ]}
+        description={t("assetPage.packagesSbom", {
+          value: asset.agent?.platform === "kubernetes" ? "Kubernetes node · " : "",
+          value2: asset.distro ?? "Unknown OS",
+          packages: asset.packages,
+          ago: ago(asset.sbom.receivedAt),
+          format: asset.sbom.format,
+        })}
         actions={
           <>
             {asset.kind === "host" && asset.agent && can("editor") && (
@@ -664,11 +794,17 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
           </>
         }
       />
-      {note && (
-        <Callout tone="info" title={note} onDismiss={() => setNote(undefined)} />
+      {note && <Callout tone="info" title={note} onDismiss={() => setNote(undefined)} />}
+      {asset.match.status === "failed" && (
+        <Callout tone="danger" title={t("assetPage.matchingFailed")}>
+          {asset.match.error}
+        </Callout>
       )}
-      {asset.match.status === "failed" && <Callout tone="danger" title={t("assetPage.matchingFailed")}>{asset.match.error}</Callout>}
-      {asset.agent?.lastError && <Callout tone="warning" title={t("assetPage.theAgentReportedAProblem")}>{asset.agent.lastError}</Callout>}
+      {asset.agent?.lastError && (
+        <Callout tone="warning" title={t("assetPage.theAgentReportedAProblem")}>
+          {asset.agent.lastError}
+        </Callout>
+      )}
       <KpiGrid minWidth={150}>
         <KpiCard label={t("assetPage.exploitedKev")} value={asset.knownExploited} tone={asset.knownExploited ? "danger" : "success"} />
         <KpiCard label={t("assetPage.critical")} value={asset.open.critical} />
@@ -695,7 +831,11 @@ function AssetPage({ call, id }: { call: Call; id: string }) {
           getRowId={(f) => `${f.vulnerability}|${f.package.type}|${f.package.name}|${f.package.version}`}
           minWidth={900}
           pageSize={50}
-          empty={<EmptyState title={t("assetPage.nothingHere")}>{tab === "resolved" ? t("assetPage.fixedFindingsAppearHereFor") : t("assetPage.noFindingsInThisView")}</EmptyState>}
+          empty={
+            <EmptyState title={t("assetPage.nothingHere")}>
+              {tab === "resolved" ? t("assetPage.fixedFindingsAppearHereFor") : t("assetPage.noFindingsInThisView")}
+            </EmptyState>
+          }
         />
       </Panel>
     </>
@@ -708,15 +848,41 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
   const t = useT();
   const { can } = useAuth();
   const [rows, setRows] = useState<Exception[]>();
-  const load = useCallback(() => call<{ exceptions: Exception[] }>("/api/v1/exceptions").then((r) => setRows(r.exceptions), () => setRows([])), [call]);
+  const load = useCallback(
+    () =>
+      call<{ exceptions: Exception[] }>("/api/v1/exceptions").then(
+        (r) => setRows(r.exceptions),
+        () => setRows([]),
+      ),
+    [call],
+  );
   useEffect(() => void load(), [load]);
 
   const columns: Column<Exception>[] = [
     { id: "vuln", header: t("exceptionsPage.vulnerability"), cell: (e) => <EntityChip kind="cve" value={e.vulnerability} /> },
-    { id: "scope", header: t("exceptionsPage.on"), cell: (e) => (e.asset ? <EntityChip kind={e.asset.kind === "host" ? "host" : "container"} value={e.asset.name} href={`/assets/${e.asset.id}`} /> : "Every asset") },
+    {
+      id: "scope",
+      header: t("exceptionsPage.on"),
+      cell: (e) =>
+        e.asset ? <EntityChip kind={e.asset.kind === "host" ? "host" : "container"} value={e.asset.name} href={`/assets/${e.asset.id}`} /> : "Every asset",
+    },
     { id: "reason", header: t("exceptionsPage.reason"), width: "36%", cell: (e) => <span className="text-xs">{e.reason}</span> },
-    { id: "expires", header: t("exceptionsPage.expires"), sortValue: (e) => e.expiresAt, cell: (e) => <span className="text-xs">{new Date(e.expiresAt).toLocaleDateString()}</span> },
-    { id: "state", header: t("exceptionsPage.state"), cell: (e) => (e.active ? <StatusBadge tone="success">{t("exceptionsPage.active")}</StatusBadge> : <StatusBadge tone="neutral">{t("exceptionsPage.expired")}</StatusBadge>) },
+    {
+      id: "expires",
+      header: t("exceptionsPage.expires"),
+      sortValue: (e) => e.expiresAt,
+      cell: (e) => <span className="text-xs">{new Date(e.expiresAt).toLocaleDateString()}</span>,
+    },
+    {
+      id: "state",
+      header: t("exceptionsPage.state"),
+      cell: (e) =>
+        e.active ? (
+          <StatusBadge tone="success">{t("exceptionsPage.active")}</StatusBadge>
+        ) : (
+          <StatusBadge tone="neutral">{t("exceptionsPage.expired")}</StatusBadge>
+        ),
+    },
     {
       id: "remove",
       header: <span className="sr-only">{t("exceptionsPage.remove")}</span>,
@@ -724,9 +890,13 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
       align: "right",
       cell: (e) =>
         can("editor") && (
-        <IconButton label={t("exceptionsPage.removeTheExceptionFor", { vulnerability: e.vulnerability })} size="sm" onClick={() => void call(`/api/v1/exceptions/${e.id}`, { method: "DELETE" }).then(() => (load(), reload()))}>
-          <Trash2 />
-        </IconButton>
+          <IconButton
+            label={t("exceptionsPage.removeTheExceptionFor", { vulnerability: e.vulnerability })}
+            size="sm"
+            onClick={() => void call(`/api/v1/exceptions/${e.id}`, { method: "DELETE" }).then(() => (load(), reload()))}
+          >
+            <Trash2 />
+          </IconButton>
         ),
     },
   ];
@@ -734,7 +904,15 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
     <>
       <PageHeader title={t("exceptionsPage.exceptions")} description={t("exceptionsPage.acceptedRisksHideAVulnerability")} />
       <Panel flush>
-        <DataTable label={t("exceptionsPage.exceptions")} columns={columns} rows={rows ?? []} loading={!rows} getRowId={(e) => e.id} minWidth={800} empty={<EmptyState title={t("exceptionsPage.noExceptions")}>{t("exceptionsPage.everyOpenFindingIsShown")}</EmptyState>} />
+        <DataTable
+          label={t("exceptionsPage.exceptions")}
+          columns={columns}
+          rows={rows ?? []}
+          loading={!rows}
+          getRowId={(e) => e.id}
+          minWidth={800}
+          empty={<EmptyState title={t("exceptionsPage.noExceptions")}>{t("exceptionsPage.everyOpenFindingIsShown")}</EmptyState>}
+        />
       </Panel>
     </>
   );
@@ -774,7 +952,14 @@ function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; relo
       description={t("feedPanel.grypeSDatabaseDistributionAdvisories")}
       actions={
         <>
-          {step && (feed?.built ? <StatusBadge tone="success">{t("feedPanel.ready")}</StatusBadge> : feed?.updating ? <StatusBadge tone="info">{t("feedPanel.downloading")}</StatusBadge> : <StatusBadge tone="warning">{t("feedPanel.missing")}</StatusBadge>)}
+          {step &&
+            (feed?.built ? (
+              <StatusBadge tone="success">{t("feedPanel.ready")}</StatusBadge>
+            ) : feed?.updating ? (
+              <StatusBadge tone="info">{t("feedPanel.downloading")}</StatusBadge>
+            ) : (
+              <StatusBadge tone="warning">{t("feedPanel.missing")}</StatusBadge>
+            ))}
           {can("admin") && (
             <Button size="sm" icon={<RefreshCw />} onClick={update} loading={feed?.updating} disabled={feed?.updating}>
               {t("feedPanel.updateNow")}
@@ -785,7 +970,13 @@ function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; relo
     >
       <dl className="vulns-pairs text-sm">
         <dt className="text-fg-muted">{t("feedPanel.built")}</dt>
-        <dd className="m-0">{feed?.built ? `${new Date(feed.built).toLocaleString()} (${ago(feed.built)})` : feed?.updating ? t("feedPanel.downloadingNowAbout200Mb") : t("feedPanel.notDownloadedYet")}</dd>
+        <dd className="m-0">
+          {feed?.built
+            ? `${new Date(feed.built).toLocaleString()} (${ago(feed.built)})`
+            : feed?.updating
+              ? t("feedPanel.downloadingNowAbout200Mb")
+              : t("feedPanel.notDownloadedYet")}
+        </dd>
         <dt className="text-fg-muted">{t("feedPanel.schema")}</dt>
         <dd className="m-0 font-mono">{feed?.schema ?? "–"}</dd>
         <dt className="text-fg-muted">{t("feedPanel.lastCheck")}</dt>
@@ -838,15 +1029,14 @@ function HostsPanel({ version, step }: { version?: string; step?: number }) {
         </>
       ) : (
         <>
-          <p className="mb-1 text-sm text-fg-muted">
-            {t("hostsPanel.oncePerClusterTheHelm")}
-          </p>
+          <p className="mb-1 text-sm text-fg-muted">{t("hostsPanel.oncePerClusterTheHelm")}</p>
           <Code>{`helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version ${tag} \\
   --namespace openasy --create-namespace \\
   --set vulns.enabled=false --set agent.url=${origin} --set auth.ingestToken=...`}</Code>
           <p className="mt-2 text-sm text-fg-muted">
             {t("hostsPanel.theAgentMountsEachNode")}{" "}
-            <code className="font-mono text-xs">kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged</code>. Clusters that forbid hostPath entirely, such as GKE Autopilot, cannot run it.
+            <code className="font-mono text-xs">kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged</code>. Clusters that forbid
+            hostPath entirely, such as GKE Autopilot, cannot run it.
           </p>
         </>
       )}
@@ -895,7 +1085,7 @@ function WelcomePage({ call, feed, reload, version }: { call: Call; feed?: Feed;
       <HostsPanel version={version} step={2} />
       <ImagesPanel step={3} />
       <p className="m-0 text-sm text-fg-muted">
-        {t("welcomePage.vulnsAgentSendsVulnsIngest")}{" "}<a href="/tokens">{t("welcomePage.apiTokens")}</a>. Everything here is also in the{" "}
+        {t("welcomePage.vulnsAgentSendsVulnsIngest")} <a href="/tokens">{t("welcomePage.apiTokens")}</a>. Everything here is also in the{" "}
         <a href="/api/docs/">API</a>.
       </p>
     </>
@@ -911,8 +1101,14 @@ function SettingsPage({ page }: { page: "account" | "members" | "signin" | "toke
   if (page !== "account" && !can("admin")) return <EmptyState title={t("settingsPage.adminsOnly")}>{t("settingsPage.askAnAdminOfThis")}</EmptyState>;
   const titles = {
     account: ["Account", "Your profile, password, two-step verification and where you are signed in."],
-    members: ["Members", "Who can sign in to this vulns, and with which role. Viewers see everything; editors also accept risks and request scans; admins also delete assets, manage vulnerability data, members and tokens."],
-    signin: ["Sign-in", "Identity providers people can sign in with, such as OpenAsy Identity, Keycloak or Microsoft Entra ID, and which of their groups give which role."],
+    members: [
+      "Members",
+      "Who can sign in to this vulns, and with which role. Viewers see everything; editors also accept risks and request scans; admins also delete assets, manage vulnerability data, members and tokens.",
+    ],
+    signin: [
+      "Sign-in",
+      "Identity providers people can sign in with, such as OpenAsy Identity, Keycloak or Microsoft Entra ID, and which of their groups give which role.",
+    ],
     tokens: ["API tokens", "For scripts and CI. Each token has one role and an expiry; the secret is shown once."],
   } as const;
   return (
@@ -950,7 +1146,10 @@ function Product() {
   // The install's other products (OPENASY_PRODUCTS), for the switcher; ids this UI does not know are left out.
   useEffect(() => {
     void call<{ products: ProductLink[] }>("/api/v1/products").then(
-      (r) => setProducts(r.products.filter((p): p is ProductLink & { id: ProductId } => p.id !== "vulnerabilities" && (PRODUCT_IDS as readonly string[]).includes(p.id))),
+      (r) =>
+        setProducts(
+          r.products.filter((p): p is ProductLink & { id: ProductId } => p.id !== "vulnerabilities" && (PRODUCT_IDS as readonly string[]).includes(p.id)),
+        ),
       () => {},
     );
   }, [call]);
