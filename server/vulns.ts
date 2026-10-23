@@ -398,6 +398,11 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
       };
     },
 
+    /** What this product knows servers by, to say which in the hosts file it has nothing for (ADR 0052): host assets. */
+    knownHosts(): string[] {
+      return (db.prepare("SELECT name FROM assets WHERE kind = 'host'").all() as Array<{ name: string }>).map((r) => r.name);
+    },
+
     summary() {
       const { sql, params } = groupedQuery({ status: "open" });
       const groups = db.prepare(sql).all(...params) as GroupRow[];

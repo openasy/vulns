@@ -46,7 +46,7 @@ import {
   type Kind,
   type ProductLink,
   type Severity,
-  type Summary,
+  type HostsCoverage, type Summary,
   type Vulnerability,
   type VulnerabilityDetail,
 } from "./api.ts";
@@ -274,6 +274,24 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
   );
 }
 
+/** Servers in the install's hosts file Vulnerabilities has no scan for, and the file's own problems (ADR 0052). */
+function HostsCoverageNote({ file }: { file?: HostsCoverage | null }) {
+  if (!file) return null;
+  if (file.error) {
+    return (
+      <Callout tone="danger" title="The hosts file is not applied">
+        {file.error} Its last good version is used until it is fixed ({file.path}).
+      </Callout>
+    );
+  }
+  if (!file.missing.length) return null;
+  return (
+    <Callout tone="warning" title={`${file.missing.length} ${file.missing.length === 1 ? "server" : "servers"} in the hosts file ${file.missing.length === 1 ? "has" : "have"} no scan`}>
+      {file.missing.map((h) => h.name).join(", ")}. Install vulns-agent there, or check that it reports the server under its name or address.
+    </Callout>
+  );
+}
+
 function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary; reload: () => void }) {
   const [tab, setTab] = useState<Tab>("open");
   const [sev, setSev] = useState<string[]>([]);
@@ -361,6 +379,7 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
         description={s ? `${plural(s.assets.hosts, "host")} · ${plural(s.assets.images, "image")} · vulnerability data ${s.feed.built ? `built ${ago(s.feed.built)}` : "not downloaded yet"} (OS advisories, GitHub, NVD, CISA KEV, EPSS)` : undefined}
         actions={<SearchInput label="Search CVE or package" className="w-64" value={q} onChange={(e) => setQ(e.target.value)} />}
       />
+      <HostsCoverageNote file={s?.hostsFile} />
       <NoFeed feed={s?.feed} />
       {s && (
         <KpiGrid minWidth={150}>

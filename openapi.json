@@ -2314,7 +2314,8 @@
           "open",
           "knownExploited",
           "fixable",
-          "feed"
+          "feed",
+          "hostsFile"
         ],
         "additionalProperties": false,
         "properties": {
@@ -2351,6 +2352,17 @@
           },
           "feed": {
             "$ref": "#/components/schemas/Feed"
+          },
+          "hostsFile": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HostsCoverage"
+              }
+            ],
+            "description": "null when OPENASY_HOSTS is not set."
           }
         }
       },
@@ -2530,6 +2542,76 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        }
+      },
+      "HostsCoverage": {
+        "type": "object",
+        "required": [
+          "path",
+          "appliedAt",
+          "entries",
+          "error",
+          "warnings",
+          "missing"
+        ],
+        "additionalProperties": false,
+        "description": "The hosts file (ADR 0052), shared with the other products that work with servers, and the servers in it Vulnerabilities has no scan for. It is read again within a minute of a change; a file that cannot be applied leaves its last good version.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "appliedAt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "format": "date-time"
+              }
+            ],
+            "description": "When it was last read and applied; null if it never was."
+          },
+          "entries": {
+            "type": "integer"
+          },
+          "error": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Why the file on disk is not applied."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "description": "Servers Vulnerabilities knows by neither their name nor their address (host assets).",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "address"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                }
+              }
             }
           }
         }

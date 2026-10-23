@@ -8,6 +8,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { createGunzip } from "node:zlib";
 import { AuthError, mergeOpenApi, sendProblem, type Auth, type Role } from "@openasy/auth";
 import type { Severity } from "./grype.ts";
+import { missingHosts, type HostEntry, type HostsFileState } from "./hosts.ts";
 import { log } from "./log.ts";
 import { countRequest, renderMetrics } from "./metrics.ts";
 import type { ProductLink } from "./products.ts";
@@ -38,6 +39,8 @@ export interface AppOptions {
   serveMetrics?: boolean;
   /** The install's OpenAsy products and their addresses, from OPENASY_PRODUCTS, for the product switcher. */
   products?: ProductLink[];
+  /** The hosts file (OPENASY_HOSTS, ADR 0052) as last applied, and where it stands; absent when there is none. */
+  hostsFile?: () => { state: HostsFileState; hosts: HostEntry[] };
 }
 
 function metricsText(vulns: Vulns, version: string) {
@@ -193,7 +196,7 @@ function vulnFilter(url: URL): VulnFilter {
   return { status, severity, kev: bool(url, "kev"), fixable: bool(url, "fixable"), kind: kind ?? undefined, assetId: url.searchParams.get("asset") ?? undefined, q: q || undefined };
 }
 
-export function createApp({ db, vulns, version, auth, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true, products = [] }: AppOptions) {
+export function createApp({ db, vulns, version, auth, adminToken, ingestToken, tmpDir, webDir, docsDir, openapi, serveMetrics = true, products = [], hostsFile }: AppOptions) {
   // The served description includes /api/v1/auth from @openasy/auth, so the API reference documents sign-in too.
   const spec = openapi && JSON.stringify({ ...mergeOpenApi(openapi), info: { ...(openapi.info as object), version } });
   const created = (res: ServerResponse, data: unknown) => (json(res, 201, data), undefined);
@@ -203,10 +206,17 @@ export function createApp({ db, vulns, version, auth, adminToken, ingestToken, t
   const cursor = (url: URL) => url.searchParams.get("cursor") ?? undefined;
   const limit = (url: URL) => parseLimit(url.searchParams.get("limit"));
 
+  /** The servers in the hosts file this product has nothing for, with where the file stands (ADR 0052). */
+  const coverage = () => {
+    if (!hostsFile) return null;
+    const { state, hosts } = hostsFile();
+    return { ...state, missing: missingHosts(hosts, vulns.knownHosts()).map((h) => ({ name: h.name, address: h.address })) };
+  };
+
   const routes: Route[] = [
     { method: "GET", path: "/api/v1/version", auth: "none", handle: () => ({ product: "vulns", version }) },
     { method: "GET", path: "/api/v1/products", auth: "viewer", handle: () => ({ products }) },
-    { method: "GET", path: "/api/v1/summary", auth: "viewer", handle: () => vulns.summary() },
+    { method: "GET", path: "/api/v1/summary", auth: "viewer", handle: () => ({ ...vulns.summary(), hostsFile: coverage() }) },
 
     // SBOMs in: from vulns-agent on hosts, and from CI for images.
     {

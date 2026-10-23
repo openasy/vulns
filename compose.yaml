@@ -18,9 +18,12 @@ services:
       - "127.0.0.1:8080:8080"   # UI and API; put a TLS proxy in front to reach it from elsewhere
     volumes:
       - vulns-data:/data   # SQLite database, SBOMs and the vulnerability data
+      # - ./hosts.yaml:/config/hosts.yaml:ro   # the install's servers, to see which ones have no scan
     secrets:
       - openasy-kek   # mounted at /run/secrets/openasy-kek
     environment:
+      # The install's hosts file (ADR 0052), to list servers with no scan:
+      # OPENASY_HOSTS: /config/hosts.yaml
       # The address people open vulns at; with a TLS proxy in front, its https:// URL.
       VULNS_PUBLIC_URL: ${VULNS_PUBLIC_URL:-http://localhost:8080}
       VULNS_INGEST_TOKEN: ${VULNS_INGEST_TOKEN:?set VULNS_INGEST_TOKEN}

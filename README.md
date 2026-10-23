@@ -56,6 +56,7 @@ least 8 GB. SBOMs sent before it arrives are kept and matched as soon as it does
 | `PORT` | `8080` | HTTP port |
 | `VULNS_PUBLIC_URL` | `http://localhost:8080` | The address people open, with `https://` behind your TLS proxy. Cookies, passkeys and OIDC redirects use it |
 | `OPENASY_PRODUCTS` | | The install's other OpenAsy products, for the product switcher: `identity=https://id.example.com,infrastructure=https://infra.example.com`. Give every product the same value |
+| `OPENASY_HOSTS` | | The install's hosts file, shared with Infrastructure and Logs (ADR 0052). The main page lists the servers in it with no scan, matched by name or address in host assets |
 | `VULNS_INGEST_TOKEN` | | Token for vulns-agent and CI. It can send SBOMs and heartbeats, nothing else |
 | `VULNS_SECRETS_KEY_FILE` | `/run/secrets/openasy-kek` | 32-byte key that encrypts secrets in the database (ADR 0021). Without it vulns warns and stores them unencrypted |
 | `VULNS_PASSWORD_SIGN_IN` | `true` | `false` when everyone signs in through OIDC |

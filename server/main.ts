@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createApp, createMetricsHandler } from "./app.ts";
 import { openDb } from "./db.ts";
 import { createGrype } from "./grype.ts";
+import { watchHosts, type HostEntry } from "./hosts.ts";
 import { log } from "./log.ts";
 import { parseProducts } from "./products.ts";
 import { createVulns } from "./vulns.ts";
@@ -46,6 +47,16 @@ const auth = createAuth({
 });
 const grype = createGrype({ bin: process.env.VULNS_GRYPE_BIN ?? "/usr/local/bin/grype", dataDir: feedDir, tmpDir, updateUrl: process.env.VULNS_FEED_URL });
 const vulns = createVulns(db, grype, { retentionDays });
+// The install's servers, one file for every product that works with servers (ADR 0052): this one says which it has
+// nothing for.
+const hostsPath = process.env.OPENASY_HOSTS?.trim() || undefined;
+let hosts: HostEntry[] = [];
+const hostsFile = hostsPath
+  ? watchHosts(hostsPath, (list) => ((hosts = list), []), {
+      onChange: (s) =>
+        s.error ? log("error", "hosts file not applied; its last good version stays", { path: s.path, error: s.error }) : log("info", "hosts file applied", { path: s.path, entries: s.entries }),
+    })
+  : undefined;
 const products = parseProducts(process.env.OPENASY_PRODUCTS);
 if (products.invalid.length) log("warn", "OPENASY_PRODUCTS: left out entries that are not id=https://address", { entries: products.invalid });
 const server = createServer(
@@ -62,6 +73,7 @@ const server = createServer(
     openapi,
     serveMetrics: metricsPort === undefined,
     products: products.products,
+    hostsFile: hostsFile && (() => ({ state: hostsFile.state, hosts })),
   }),
 );
 const metricsServer = metricsPort !== undefined ? createServer(createMetricsHandler(vulns, version)) : undefined;
@@ -98,6 +110,7 @@ timers.push(setInterval(() => vulns.purge(), 24 * 3_600_000));
 function shutdown(signal: string) {
   log("info", "shutting down", { signal });
   for (const t of timers) clearInterval(t);
+  hostsFile?.stop();
   metricsServer?.close();
   server.close(() => {
     db.close();
