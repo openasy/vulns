@@ -25,10 +25,10 @@ services:
       VULNS_PUBLIC_URL: ${VULNS_PUBLIC_URL:-http://localhost:8080}
       VULNS_INGEST_TOKEN: ${VULNS_INGEST_TOKEN:?set VULNS_INGEST_TOKEN}
       # Sign in with your identity provider (OIDC), see the README:
-      # VULNS_OIDC_ISSUER: https://login.example.com
-      # VULNS_OIDC_CLIENT_ID: vulns
-      # VULNS_OIDC_CLIENT_SECRET: ${VULNS_OIDC_CLIENT_SECRET}
-      # VULNS_OIDC_ROLE_MAPPING: vulns-admins=admin,staff=viewer
+      # OPENASY_OIDC_ISSUER: https://login.example.com
+      # OPENASY_OIDC_CLIENT_ID: vulns
+      # OPENASY_OIDC_CLIENT_SECRET: ${OPENASY_OIDC_CLIENT_SECRET}
+      # OPENASY_OIDC_ROLE_MAPPING: vulns-admins=admin,staff=viewer
       # VULNS_FEED_UPDATE_HOURS: "0"   # air-gapped: no downloads, import the data with PUT /api/v1/feed
 
   vulns-agent:

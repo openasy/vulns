@@ -3,7 +3,7 @@
 # Tokens. Leave them empty to have the chart generate them once and keep them across upgrades, or name a Secret you
 # manage with the keys VULNS_INGEST_TOKEN, openasy-kek (32 random bytes, base64: openssl rand -base64 32) and,
 # deprecated, VULNS_ADMIN_TOKEN. People sign in with accounts; scripts use API tokens from Settings (ADR 0002, 0003).
-# OIDC: set VULNS_OIDC_* in vulns.extraEnv (see the README), with the client secret from a Secret.
+# OIDC: set OPENASY_OIDC_* in vulns.extraEnv (see the README), with the client secret from a Secret.
 auth:
   existingSecret: ""
   adminToken: ""

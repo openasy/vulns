@@ -59,7 +59,7 @@ least 8 GB. SBOMs sent before it arrives are kept and matched as soon as it does
 | `VULNS_INGEST_TOKEN` | | Token for vulns-agent and CI. It can send SBOMs and heartbeats, nothing else |
 | `VULNS_SECRETS_KEY_FILE` | `/run/secrets/openasy-kek` | 32-byte key that encrypts secrets in the database (ADR 0021). Without it vulns warns and stores them unencrypted |
 | `VULNS_PASSWORD_SIGN_IN` | `true` | `false` when everyone signs in through OIDC |
-| `VULNS_OIDC_*` | | Sign-in through your identity provider, see [Sign-in](#sign-in) |
+| `OPENASY_OIDC_*` | | Sign-in through your identity provider, the same names in every product, see [Sign-in](#sign-in) |
 | `VULNS_ADMIN_TOKEN` | | Deprecated: one shared admin token without an expiry, for scripts from before sign-in. Use an API token |
 | `VULNS_FEED_UPDATE_HOURS` | `24` | How often to download newer vulnerability data; `0` turns downloads off |
 | `VULNS_FEED_URL` | Grype's | A mirror of `https://grype.anchore.io/databases` |
@@ -88,17 +88,22 @@ Sign-in comes from [@openasy/auth](https://github.com/openasy/auth), the same in
   ID, Okta, Google, authentik, ZITADEL or any OpenID Connect provider. The page shows that provider's steps and the
   redirect URI to register, checks the issuer, and maps groups to roles; the client secret is kept encrypted.
 - **OIDC** (Entra ID, Okta, Google, Keycloak, Authentik, Zitadel...): register vulns as a confidential client with the
-  redirect URI `<VULNS_PUBLIC_URL>/api/v1/auth/oidc/sso/callback`, then set:
+  redirect URI `<VULNS_PUBLIC_URL>/api/v1/auth/oidc/sso/callback`, then set the variables below. Their names are the
+  same in every OpenAsy product, so an install sets them once; only the client is this product's:
 
   | Variable | |
   | --- | --- |
-  | `VULNS_OIDC_ISSUER`, `VULNS_OIDC_CLIENT_ID`, `VULNS_OIDC_CLIENT_SECRET` | Required to turn it on |
-  | `VULNS_OIDC_NAME` | On the button: "Continue with ...". Default `SSO` |
-  | `VULNS_OIDC_SCOPES` | Default `openid email profile`; add the scope that carries groups |
-  | `VULNS_OIDC_GROUPS_CLAIM` | Default `groups` |
-  | `VULNS_OIDC_ROLE_MAPPING` | `vulns-admins=admin,staff=viewer`: the role follows the groups on every sign-in |
-  | `VULNS_OIDC_DEFAULT_ROLE` | Role for people nobody invited. Unset: only invited people and mapped groups get in |
-  | `VULNS_OIDC_ALLOWED_DOMAINS` | Comma-separated email domains, for providers anyone can join (Google) |
+  | `OPENASY_OIDC_ISSUER`, `OPENASY_OIDC_CLIENT_ID`, `OPENASY_OIDC_CLIENT_SECRET` | Required to turn it on |
+  | `OPENASY_OIDC_PROVIDER` | `keycloak`, `entra`, `okta`, `google`, `authentik`, `zitadel` or `openasy-identity`: that provider's defaults |
+  | `OPENASY_OIDC_NAME` | On the button: "Continue with ...". Default `SSO` |
+  | `OPENASY_OIDC_SCOPES` | Default `openid email profile`; add the scope that carries groups |
+  | `OPENASY_OIDC_GROUPS_CLAIM` | Default `groups` |
+  | `OPENASY_OIDC_ROLE_MAPPING` | `vulns-admins=admin,staff=viewer`: the role follows the groups on every sign-in |
+  | `OPENASY_OIDC_DEFAULT_ROLE` | Role for people nobody invited. Unset: only invited people and mapped groups get in |
+  | `OPENASY_OIDC_ALLOWED_DOMAINS` | Comma-separated email domains, for providers anyone can join (Google) |
+  | `OPENASY_OIDC_AUTO_REDIRECT` | `true`: the sign-in page opens the provider straight away; `?local=1` still shows the form |
+
+  The names before 0.5.0 of `@openasy/auth`, such as `VULNS_OIDC_ISSUER`, still work for now and log a warning.
 
   An existing member is linked by the email the provider says it has verified. People from the provider use its MFA.
 
