@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "OpenAsy Vulnerabilities API",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "summary": "OS package and container image vulnerabilities from SBOMs, ranked by exploitability.",
     "description": "Every screen of vulns uses this API, and so can your scripts and CI (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nSend SBOMs (Syft JSON, CycloneDX JSON or SPDX JSON) with `VULNS_INGEST_TOKEN`; vulns-agent does this for hosts. Everything else takes the session of a signed-in person or an API token, and each operation names the role it needs (`x-openasy-role`: viewer, editor, admin; ADR 0003).\n\nSign-in, members and API tokens are under `/api/v1/auth`, provided by [@openasy/auth](https://github.com/openasy/auth#routes).",
     "license": {

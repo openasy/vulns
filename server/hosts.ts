@@ -13,6 +13,8 @@ export interface HostEntry {
   port: number;
   user: string;
   auth: "certificate" | "key";
+  /** With auth key: a private key in the agent's key folder, read by the agent alone; the agent's own key without it. */
+  keyFile: string | null;
   containers: boolean;
   /** Another entry's name: the host this one is reached through. */
   jump: string | null;
@@ -29,7 +31,9 @@ const ADDRESS = /^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$|^\[[0-9a-fA-F:]+\]$/;
 const USER = /^[a-z_][a-z0-9_-]{0,31}$/;
 const FINGERPRINT = /^SHA256:[A-Za-z0-9+/]{43}$/;
 const TAG = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,62}$/;
-const KEYS = ["name", "address", "port", "user", "auth", "containers", "jump", "agent", "hostKey", "tags"];
+// A file name, never a path: no slash, so the agent never reads outside its key folder, and no leading dot.
+const KEY_FILE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const KEYS = ["name", "address", "port", "user", "auth", "keyFile", "containers", "jump", "agent", "hostKey", "tags"];
 const isObj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
 
 /** Reads the file's text. Throws with the entry and field at fault, so one message says what to fix. */
@@ -60,6 +64,11 @@ export function parseHosts(text: string): HostEntry[] {
       throw new Error(`${where}.port is 1 to 65535.`);
     if (h.user !== undefined && (typeof h.user !== "string" || !USER.test(h.user))) throw new Error(`${where}.user is a Unix account name.`);
     if (h.auth !== undefined && h.auth !== "certificate" && h.auth !== "key") throw new Error(`${where}.auth is certificate or key.`);
+    if (h.keyFile !== undefined && h.keyFile !== null) {
+      if (typeof h.keyFile !== "string" || !KEY_FILE.test(h.keyFile))
+        throw new Error(`${where}.keyFile is a file name in the agent's key folder, such as web-1.key: no folders, up to 128.`);
+      if (h.auth !== "key") throw new Error(`${where}.keyFile needs auth: key.`);
+    }
     if (h.containers !== undefined && typeof h.containers !== "boolean") throw new Error(`${where}.containers is true or false.`);
     for (const k of ["jump", "agent"] as const) {
       if (h[k] !== undefined && h[k] !== null && (typeof h[k] !== "string" || !NAME.test(h[k] as string)))
@@ -80,6 +89,7 @@ export function parseHosts(text: string): HostEntry[] {
       port: (h.port as number | undefined) ?? 22,
       user: (h.user as string | undefined) ?? "openasy",
       auth: (h.auth as HostEntry["auth"] | undefined) ?? "certificate",
+      keyFile: (h.keyFile as string | null | undefined) ?? null,
       containers: h.containers === true,
       jump: (h.jump as string | null | undefined) ?? null,
       agent: (h.agent as string | null | undefined) ?? null,

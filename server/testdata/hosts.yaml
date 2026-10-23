@@ -15,4 +15,6 @@ hosts:
     address: 10.0.0.6
     port: 2222
     user: reader
+    auth: key
+    keyFile: db-1.key # read by the agent from its key folder
     agent: dc1
