@@ -3,8 +3,8 @@ name: vulns
 description: OpenAsy Vulnerabilities. OS package and container image vulnerabilities from SBOMs, ranked by exploitability, with vulns-agent on every node.
 type: application
 # Same version as the product and its agent (ADR 0019); the release workflow refuses a mismatch.
-version: 0.4.0
-appVersion: "0.4.0"
+version: 0.5.0
+appVersion: "0.5.0"
 kubeVersion: ">=1.33.0-0"
 home: https://openasy.github.io/products/vulnerabilities
 sources:

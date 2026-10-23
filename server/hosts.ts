@@ -20,7 +20,10 @@ export interface HostEntry {
   jump: string | null;
   /** The name of the product's agent that reaches it; each product has its own agents, named alike. */
   agent: string | null;
-  /** SHA256:... as ssh-keygen -lf prints it: the key is trusted when the host presents it. */
+  /**
+   * SHA256:... as ssh-keygen -lf prints it: the key is trusted when the host presents it. first: the key the host
+   * presents the first time is trusted, and a different one later waits for an admin. Unset: an admin accepts it.
+   */
   hostKey: string | null;
   tags: Record<string, string>;
 }
@@ -74,8 +77,8 @@ export function parseHosts(text: string): HostEntry[] {
       if (h[k] !== undefined && h[k] !== null && (typeof h[k] !== "string" || !NAME.test(h[k] as string)))
         throw new Error(`${where}.${k} is a name: letters, digits, dots, dashes and underscores, up to 63.`);
     }
-    if (h.hostKey !== undefined && h.hostKey !== null && (typeof h.hostKey !== "string" || !FINGERPRINT.test(h.hostKey))) {
-      throw new Error(`${where}.hostKey is a fingerprint as ssh-keygen -lf prints it, such as SHA256:${"A".repeat(43)}.`);
+    if (h.hostKey !== undefined && h.hostKey !== null && h.hostKey !== "first" && (typeof h.hostKey !== "string" || !FINGERPRINT.test(h.hostKey))) {
+      throw new Error(`${where}.hostKey is a fingerprint as ssh-keygen -lf prints it, such as SHA256:${"A".repeat(43)}, or first to trust the first key.`);
     }
     if (
       h.tags !== undefined &&
