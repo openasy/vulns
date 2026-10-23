@@ -375,8 +375,7 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
       width: "32%",
       cell: (v) => (
         <span className="flex min-w-0 flex-col">
-          {/* Click bubbles to the row handler; the button makes it keyboard reachable. */}
-          <button type="button" className="self-start font-mono text-xs font-medium text-fg hover:underline">
+          <button type="button" onClick={() => setOpen(v)} className="self-start font-mono text-xs font-medium text-fg hover:underline">
             {v.vulnerability}
           </button>
           <span className="vulns-clamp text-xs text-fg-muted" title={v.description ?? undefined}>
@@ -601,7 +600,11 @@ function AssetsPage({ call, kind }: { call: Call; kind: Kind }) {
       sortValue: (a) => a.name,
       cell: (a) => (
         <span className="flex min-w-0 flex-col">
-          <button type="button" className="self-start truncate font-mono text-xs font-medium text-fg hover:underline">
+          <button
+            type="button"
+            onClick={() => navigate(`/assets/${a.id}`)}
+            className="self-start truncate font-mono text-xs font-medium text-fg hover:underline"
+          >
             {a.name}
           </button>
           <span className="flex flex-wrap items-center gap-1 text-xs text-fg-muted">

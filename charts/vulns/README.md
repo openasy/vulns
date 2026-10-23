@@ -5,7 +5,7 @@ with its volume, and [vulns-agent](https://github.com/openasy/vulns-agent) on ev
 the same version as the product and its agent.
 
 ```bash
-helm install vulns oci://ghcr.io/openasy/charts/vulns --version 0.3.0 --namespace openasy --create-namespace
+helm install vulns oci://ghcr.io/openasy/charts/vulns --version 0.3.1 --namespace openasy --create-namespace
 helm test vulns -n openasy
 kubectl -n openasy port-forward svc/vulns 8080:8080   # then http://127.0.0.1:8080
 kubectl -n openasy get secret vulns -o jsonpath='{.data.VULNS_ADMIN_TOKEN}' | base64 -d; echo
@@ -60,7 +60,7 @@ Every value is documented in [`values.yaml`](./values.yaml).
 For a cluster whose nodes should report to a vulns that runs elsewhere, for example with Docker Compose:
 
 ```bash
-helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version 0.3.0 --namespace openasy --create-namespace \
+helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version 0.3.1 --namespace openasy --create-namespace \
   --set vulns.enabled=false --set agent.url=https://vulns.example.com --set auth.ingestToken=$VULNS_INGEST_TOKEN
 ```
 
@@ -76,7 +76,7 @@ chart. Upgrades are forward-only (ADR 0010); vulns migrates its database on star
 ## Verify
 
 ```bash
-cosign verify ghcr.io/openasy/charts/vulns:0.3.0 \
+cosign verify ghcr.io/openasy/charts/vulns:0.3.1 \
   --certificate-identity-regexp '^https://github.com/openasy/vulns/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
