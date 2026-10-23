@@ -113,7 +113,7 @@ SAML 2.0, LDAP and trusted proxy headers are planned.
 ### Kubernetes
 
 ```bash
-helm install vulns oci://ghcr.io/openasy/charts/vulns --version 0.2.0 --namespace openasy --create-namespace
+helm install vulns oci://ghcr.io/openasy/charts/vulns --version 0.3.0 --namespace openasy --create-namespace
 helm test vulns -n openasy
 ```
 
@@ -133,7 +133,7 @@ such as GKE Autopilot, cannot run the agent: set `agent.enabled=false` there and
 Already running vulns elsewhere, for example with Compose? Install only the agents, and every node reports to it:
 
 ```bash
-helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version 0.2.0 --namespace openasy --create-namespace \
+helm install vulns-agent oci://ghcr.io/openasy/charts/vulns --version 0.3.0 --namespace openasy --create-namespace \
   --set vulns.enabled=false --set agent.url=https://vulns.example.com --set auth.ingestToken=$VULNS_INGEST_TOKEN
 ```
 
@@ -148,7 +148,7 @@ Run [vulns-agent](https://github.com/openasy/vulns-agent) on each host with the 
 docker run -d --name vulns-agent --restart unless-stopped --hostname "$(hostname)" \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
   -v /:/host:ro -e VULNS_URL=https://vulns.example.com -e VULNS_INGEST_TOKEN=... \
-  ghcr.io/openasy/vulns-agent:0.2.0
+  ghcr.io/openasy/vulns-agent:0.3.0
 ```
 
 It scans on start and every 6 hours, and when someone clicks *Scan now*. On Kubernetes the chart runs it on every
@@ -227,12 +227,22 @@ Measured on 0.1.0: about 80 MB of memory at idle; matching a Debian 12 image (88
 4 seconds and stays under 400 MB. The image is 375 MB, over ADR 0028's 300 MB, because the Grype binary is about
 110 MB. The vulnerability data takes 3 GB on the volume.
 
+## Upgrade
+
+### To 0.3.0
+
+- The sign-in variables lose the `VULNS_` prefix and have the same names in every product (ADR 0002):
+  `VULNS_OIDC_ISSUER` is now `OPENASY_OIDC_ISSUER`, and so on for every `VULNS_OIDC_*`. Rename them before upgrading:
+  with the old names, sign-in through the provider is off and only passwords work. With the chart, rename them in
+  `vulns.extraEnv`.
+- Upgrade vulns-agent to the same version.
+
 ## Verify an image
 
 Images are signed with cosign (keyless), carry an SPDX SBOM attestation and SLSA level 3 provenance.
 
 ```bash
-cosign verify ghcr.io/openasy/vulns:0.2.0 \
+cosign verify ghcr.io/openasy/vulns:0.3.0 \
   --certificate-identity-regexp '^https://github.com/openasy/vulns/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 slsa-verifier verify-image ghcr.io/openasy/vulns@sha256:<digest> --source-uri github.com/openasy/vulns
