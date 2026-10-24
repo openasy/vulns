@@ -33,6 +33,7 @@ import {
   useAgo,
 } from "@openasy/ui";
 import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAuth, useInstallBrand } from "@openasy/auth/react";
+import colophon from "virtual:openasy-colophon";
 import {
   Boxes,
   Download,
@@ -74,7 +75,7 @@ import { useT, type T } from "./i18n.ts";
 const ui = (s: Severity): UiSeverity => (s === "negligible" || s === "unknown" ? "info" : s);
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(1)}%`);
 
-const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "signin", "tokens"] as const;
+const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "signin", "tokens", "about"] as const;
 type Route = { page: "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
 /** The first path segments that are pages of this UI, for followLinks. */
 export const PATHS = ["findings", "assets", ...PAGES];
@@ -1187,6 +1188,7 @@ function Product() {
   return (
     <AppShell
       product="vulnerabilities"
+      about={colophon}
       nav={nav}
       activeNav={active}
       onNavigate={(id) => navigate(`/${id}`)}
