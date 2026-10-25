@@ -36,6 +36,15 @@ export interface Summary {
   days: Array<{ day: string; open: Counts }>;
 }
 
+/** What the overview draws besides the summary (GET /api/v1/overview). */
+export interface Overview {
+  /** Found and fixed in each of the last 12 weeks, oldest first. */
+  weeks: Array<{ week: string; new: number; fixed: number }>;
+  topAssets: Array<{ id: string; kind: Kind; name: string; critical: number; high: number; open: number }>;
+  topPackages: Array<{ name: string; open: number; assets: number; severity: Severity }>;
+  fix: { fixed: number; notFixed: number; wontFix: number };
+}
+
 /** The hosts file (ADR 0052) and the servers in it this product has nothing for. */
 export interface HostsCoverage {
   path: string;

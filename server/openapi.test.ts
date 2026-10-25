@@ -128,6 +128,8 @@ describe("responses match openapi.json", () => {
     await call("GET", "/api/v1/vulnerabilities/{id}", admin(), "/api/v1/vulnerabilities/CVE-1999-0001");
     await call("GET", "/api/v1/summary", admin());
     await call("GET", "/api/v1/summary", {});
+    await call("GET", "/api/v1/overview", admin());
+    await call("GET", "/api/v1/overview", {});
   });
 
   it("assets", async () => {

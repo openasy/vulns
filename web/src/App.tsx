@@ -1,19 +1,23 @@
 import {
   AppShell,
   Badge,
+  BarList,
   BrandProvider,
   Button,
   Callout,
   DataTable,
   Dialog,
+  DonutChart,
   EmptyState,
   EntityChip,
   FacetFilter,
   FilterBar,
+  Gauge,
   IconButton,
   KpiCard,
   KpiGrid,
   navigate,
+  OverviewGrid,
   PageHeader,
   Panel,
   PRODUCT_IDS,
@@ -27,6 +31,7 @@ import {
   Switch,
   Tabs,
   TextField,
+  TimeSeriesChart,
   TONE_COLORS,
   usePath,
   type Column,
@@ -39,7 +44,26 @@ import {
 } from "@openasy/ui";
 import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAccountMenu, useAuth, useInstallBrand } from "@openasy/auth/react";
 import colophon from "virtual:openasy-colophon";
-import { Boxes, Download, KeyRound, LogIn, LogOut, Play, RefreshCw, Server, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
+import {
+  Boxes,
+  Download,
+  Flame,
+  KeyRound,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  Play,
+  RefreshCw,
+  Server,
+  ShieldAlert,
+  ShieldOff,
+  Trash2,
+  TriangleAlert,
+  UserRound,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   api,
@@ -54,6 +78,7 @@ import {
   type ProductLink,
   type Severity,
   type HostsCoverage,
+  type Overview,
   type Summary,
   type Vulnerability,
   type VulnerabilityDetail,
@@ -66,14 +91,15 @@ const ui = (s: Severity): UiSeverity => (s === "negligible" || s === "unknown" ?
 const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(1)}%`);
 
 const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "signin", "tokens", "about"] as const;
-type Route = { page: "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
+type Route = { page: "overview" | "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
 /** The first path segments that are pages of this UI, for followLinks. */
-export const PATHS = ["findings", "assets", ...PAGES];
+export const PATHS = ["overview", "findings", "assets", ...PAGES];
 function parseRoute(path: string): Route {
   const [page, id] = path.replace(/^\//, "").split("/");
   if (page === "assets" && id) return { page: "asset", id: decodeURIComponent(id) };
   if ((PAGES as readonly string[]).includes(page ?? "")) return { page: page as (typeof PAGES)[number] };
-  return { page: "findings" };
+  if (page === "findings") return { page: "findings" };
+  return { page: "overview" };
 }
 
 /** Data loading with the session; when it ends, the sign-in screen comes back. */
@@ -314,12 +340,188 @@ function HostsCoverageNote({ file }: { file?: HostsCoverage | null }) {
   );
 }
 
+function OverviewPage({ call, summary }: { call: Call; summary?: Summary }) {
+  const ago = useAgo();
+  const t = useT();
+  const [o, setO] = useState<Overview>();
+  // Weeks and rankings move slowly, so they are read once a minute rather than with every summary.
+  useEffect(() => {
+    const load = () => void call<Overview>("/api/v1/overview").then(setO, () => {});
+    load();
+    const timer = setInterval(load, 60_000);
+    return () => clearInterval(timer);
+  }, [call]);
+  const s = summary;
+  const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  const color = (sev: Severity) => TONE_COLORS[SEVERITY_META[ui(sev)].tone];
+  const other = s ? s.open.negligible + s.open.unknown : 0;
+  const fixTotal = o ? o.fix.fixed + o.fix.notFixed + o.fix.wontFix : 0;
+  return (
+    <>
+      <PageHeader
+        title={t("overviewPage.overview")}
+        description={
+          s
+            ? t("findingsPage.vulnerabilityDataOsAdvisoriesGithub", {
+                plural: t("plurals.host", { count: s.assets.hosts }),
+                plural2: t("plurals.image", { count: s.assets.images }),
+                value: s.feed.built ? t("findingsPage.builtAgo", { ago: ago(s.feed.built) }) : t("findingsPage.notDownloadedYet"),
+              })
+            : undefined
+        }
+      />
+      <HostsCoverageNote file={s?.hostsFile} />
+      <NoFeed feed={s?.feed} />
+      {s && (
+        <KpiGrid minWidth={160}>
+          <KpiCard
+            label={t("findingsPage.exploitedKev")}
+            value={s.knownExploited}
+            icon={Flame}
+            tone={s.knownExploited ? "danger" : "success"}
+            href="/findings?kev=true"
+          />
+          <KpiCard
+            label={t("findingsPage.critical")}
+            value={s.open.critical}
+            icon={ShieldAlert}
+            tone={s.open.critical ? "critical" : undefined}
+            trend={s.days.map((d) => d.open.critical)}
+            trendColor={TONE_COLORS.critical}
+          />
+          <KpiCard
+            label={t("findingsPage.high")}
+            value={s.open.high}
+            icon={TriangleAlert}
+            tone={s.open.high ? "danger" : undefined}
+            trend={s.days.map((d) => d.open.high)}
+            trendColor={TONE_COLORS.danger}
+          />
+          <KpiCard label={t("findingsPage.fixAvailable")} value={s.fixable} icon={Wrench} tone="info" />
+          <KpiCard
+            label={t("overviewPage.assets")}
+            value={s.assets.hosts + s.assets.images}
+            icon={Server}
+            unit={t("overviewPage.hostsAndImages", { hosts: s.assets.hosts, images: s.assets.images })}
+            tone={s.assets.failed ? "warning" : undefined}
+            footer={s.assets.failed ? <span className="text-xs text-warning-text">{t("overviewPage.failed", { count: s.assets.failed })}</span> : undefined}
+          />
+        </KpiGrid>
+      )}
+      {s && (
+        <OverviewGrid>
+          <Panel title={t("findingsPage.openOverTime")} description={t("findingsPage.atTheEndOfEach")}>
+            <StackedBarChart
+              label={t("findingsPage.openVulnerabilitiesEachDayBy")}
+              categories={s.days.map((d) => day(d.day))}
+              segments={[
+                { id: "other", name: t("findingsPage.other"), color: TONE_COLORS.neutral },
+                ...(["low", "medium", "high", "critical"] as const).map((l) => ({ id: l, name: SEVERITY_META[l].label, color: color(l) })),
+              ]}
+              values={s.days.map((d) => [d.open.negligible + d.open.unknown, d.open.low, d.open.medium, d.open.high, d.open.critical])}
+              height={190}
+              xTicks={6}
+            />
+          </Panel>
+          <Panel title={t("overviewPage.bySeverity")} description={t("overviewPage.bySeverityDetail")}>
+            <DonutChart
+              label={t("overviewPage.bySeverity")}
+              caption={t("overviewPage.open")}
+              slices={[
+                ...SEV4.map((k) => ({ id: k, name: SEVERITY_META[k].label, value: s.open[k], color: color(k), href: `/findings?severity=${k}` })),
+                { id: "other", name: t("findingsPage.other"), value: other, color: TONE_COLORS.neutral },
+              ]}
+            />
+          </Panel>
+        </OverviewGrid>
+      )}
+      {o && (
+        <OverviewGrid>
+          <Panel title={t("overviewPage.foundAndFixed")} description={t("overviewPage.foundAndFixedDetail")}>
+            <TimeSeriesChart
+              label={t("overviewPage.foundAndFixed")}
+              labels={o.weeks.map((w) => day(w.week))}
+              height={190}
+              xTicks={6}
+              series={[
+                { id: "new", name: t("overviewPage.found"), data: o.weeks.map((w) => w.new), color: TONE_COLORS.danger },
+                { id: "fixed", name: t("overviewPage.fixed"), data: o.weeks.map((w) => w.fixed), color: TONE_COLORS.success },
+              ]}
+            />
+          </Panel>
+          <Panel title={t("overviewPage.haveAFix")} description={t("overviewPage.haveAFixDetail")}>
+            <Gauge
+              label={t("overviewPage.haveAFix")}
+              value={o.fix.fixed}
+              max={fixTotal}
+              tone="info"
+              caption={t("overviewPage.ofOpen", { fixed: o.fix.fixed, open: fixTotal })}
+            />
+            <dl className="m-0 mt-3 grid grid-cols-2 gap-2 text-center text-xs">
+              <div className="rounded-md bg-subtle px-2 py-1.5">
+                <dt className="text-fg-muted">{t("overviewPage.noFixYet")}</dt>
+                <dd className="m-0 font-mono font-semibold text-fg">{o.fix.notFixed}</dd>
+              </div>
+              <div className="rounded-md bg-subtle px-2 py-1.5">
+                <dt className="text-fg-muted">{t("overviewPage.wontFix")}</dt>
+                <dd className="m-0 font-mono font-semibold text-fg">{o.fix.wontFix}</dd>
+              </div>
+            </dl>
+          </Panel>
+        </OverviewGrid>
+      )}
+      {o && (
+        <OverviewGrid layout="halves">
+          <Panel title={t("overviewPage.topAssets")} description={t("overviewPage.topAssetsDetail")}>
+            {o.topAssets.length ? (
+              <BarList
+                label={t("overviewPage.topAssets")}
+                items={o.topAssets.map((a) => ({
+                  id: a.id,
+                  label: (
+                    <span className="flex items-center gap-1.5" title={a.name}>
+                      {a.kind === "host" ? <Server aria-hidden className="size-3 shrink-0" /> : <Boxes aria-hidden className="size-3 shrink-0" />}
+                      <span className="truncate">{a.name}</span>
+                    </span>
+                  ),
+                  value: a.open,
+                  href: `/assets/${encodeURIComponent(a.id)}`,
+                  color: a.critical ? TONE_COLORS.critical : a.high ? TONE_COLORS.danger : undefined,
+                }))}
+              />
+            ) : (
+              <EmptyState title={t("overviewPage.nothingOpen")} />
+            )}
+          </Panel>
+          <Panel title={t("overviewPage.topPackages")} description={t("overviewPage.topPackagesDetail")}>
+            {o.topPackages.length ? (
+              <BarList
+                label={t("overviewPage.topPackages")}
+                items={o.topPackages.map((p) => ({
+                  id: p.name,
+                  label: <span title={`${p.name} · ${t("overviewPage.onAssets", { count: p.assets })}`}>{p.name}</span>,
+                  value: p.open,
+                  href: `/findings?q=${encodeURIComponent(p.name)}`,
+                  color: color(p.severity),
+                }))}
+              />
+            ) : (
+              <EmptyState title={t("overviewPage.nothingOpen")} />
+            )}
+          </Panel>
+        </OverviewGrid>
+      )}
+    </>
+  );
+}
+
 function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary; reload: () => void }) {
   const ago = useAgo();
   const t = useT();
   const [tab, setTab] = useState<Tab>("open");
-  const [sev, setSev] = useState<string[]>([]);
-  const [kev, setKev] = useState(false);
+  // The overview opens this page at a severity or at known-exploited ones with ?severity= and ?kev=true.
+  const [sev, setSev] = useState<string[]>(() => new URLSearchParams(location.search).get("severity")?.split(",").filter(Boolean) ?? []);
+  const [kev, setKev] = useState(() => new URLSearchParams(location.search).get("kev") === "true");
   const [fixable, setFixable] = useState(false);
   const [kind, setKind] = useState<"all" | Kind>("all");
   // The search window opens this page at a vulnerability with ?q=.
@@ -434,35 +636,6 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
       />
       <HostsCoverageNote file={s?.hostsFile} />
       <NoFeed feed={s?.feed} />
-      {s && (
-        <KpiGrid minWidth={150}>
-          <KpiCard label={t("findingsPage.exploitedKev")} value={s.knownExploited} tone={s.knownExploited ? "danger" : "success"} />
-          <KpiCard label={t("findingsPage.critical")} value={s.open.critical} footer={<SeverityBadge severity="critical" />} />
-          <KpiCard label={t("findingsPage.high")} value={s.open.high} footer={<SeverityBadge severity="high" />} />
-          <KpiCard label={t("findingsPage.medium")} value={s.open.medium} footer={<SeverityBadge severity="medium" />} />
-          <KpiCard label={t("findingsPage.low")} value={s.open.low} footer={<SeverityBadge severity="low" />} />
-          <KpiCard label={t("findingsPage.fixAvailable")} value={s.fixable} tone="info" />
-        </KpiGrid>
-      )}
-      {s && (
-        <Panel title={t("findingsPage.openOverTime")} description={t("findingsPage.atTheEndOfEach")}>
-          <StackedBarChart
-            label={t("findingsPage.openVulnerabilitiesEachDayBy")}
-            categories={s.days.map((d) => new Date(`${d.day}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }))}
-            segments={[
-              { id: "other", name: t("findingsPage.other"), color: TONE_COLORS.neutral },
-              ...(["low", "medium", "high", "critical"] as const).map((l) => ({
-                id: l,
-                name: SEVERITY_META[l].label,
-                color: TONE_COLORS[SEVERITY_META[l].tone],
-              })),
-            ]}
-            values={s.days.map((d) => [d.open.negligible + d.open.unknown, d.open.low, d.open.medium, d.open.high, d.open.critical])}
-            height={140}
-            xTicks={6}
-          />
-        </Panel>
-      )}
       <Tabs<Tab>
         label={t("findingsPage.findingViews")}
         value={tab}
@@ -1176,6 +1349,7 @@ function Product() {
   }, [reload]);
 
   const nav = [
+    { id: "overview", label: msg("product.overview"), icon: LayoutDashboard },
     { id: "findings", label: msg("product.findings"), icon: TriangleAlert },
     { id: "hosts", label: msg("product.hosts"), icon: Server, count: summary?.assets.hosts },
     { id: "images", label: msg("product.images"), icon: Boxes, count: summary?.assets.images },
@@ -1214,8 +1388,10 @@ function Product() {
       onThemeChange={setTheme}
       onLanguageChange={(code) => setLocale(toLocale(code))}
     >
-      {route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
+      {(route.page === "overview" || route.page === "findings") && summary && summary.assets.hosts + summary.assets.images === 0 ? (
         <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
+      ) : route.page === "overview" ? (
+        <OverviewPage call={call} summary={summary} />
       ) : route.page === "findings" ? (
         <FindingsPage key={location.search} call={call} summary={summary} reload={reload} />
       ) : route.page === "hosts" || route.page === "images" ? (

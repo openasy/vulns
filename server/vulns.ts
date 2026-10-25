@@ -497,6 +497,64 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
       };
     },
 
+    /**
+     * What the overview draws besides the summary: vulnerabilities found and fixed each week, the assets and packages
+     * with the most open ones, and how many of those have a fix.
+     */
+    overview() {
+      const at = now();
+      const first = Math.floor(Date.parse(at) / DAY) * DAY - 6 * DAY - 11 * 7 * DAY;
+      const since = new Date(first).toISOString();
+      // One pass each: the week a vulnerability was first found, and the week it was last fixed.
+      const byWeek = (sql: string) => new Map((db.prepare(sql).all(first, 7 * DAY, since) as Array<{ w: number; n: number }>).map((r) => [r.w, r.n]));
+      const found = byWeek(
+        `SELECT w, COUNT(*) AS n FROM (SELECT vuln_id, CAST((unixepoch(MIN(first_seen), 'subsec') * 1000 - ?) / ? AS INTEGER) AS w FROM findings GROUP BY vuln_id HAVING MIN(first_seen) >= ?) GROUP BY w`,
+      );
+      const fixed = byWeek(
+        `SELECT w, COUNT(*) AS n FROM (SELECT vuln_id, CAST((unixepoch(MAX(resolved_at), 'subsec') * 1000 - ?) / ? AS INTEGER) AS w FROM findings
+           GROUP BY vuln_id HAVING COUNT(*) = COUNT(resolved_at) AND MAX(resolved_at) >= ?) GROUP BY w`,
+      );
+      const weeks = Array.from({ length: 12 }, (_, i) => ({
+        week: new Date(first + i * 7 * DAY).toISOString().slice(0, 10),
+        new: found.get(i) ?? 0,
+        fixed: fixed.get(i) ?? 0,
+      }));
+      const topAssets = (
+        db
+          .prepare(
+            // Vulnerabilities, not findings: a kernel CVE in seven installed kernel packages counts once.
+            `SELECT a.id, a.kind, a.name, COUNT(DISTINCT f.vuln_id) FILTER (WHERE f.severity = 'critical') AS critical,
+               COUNT(DISTINCT f.vuln_id) FILTER (WHERE f.severity = 'high') AS high, COUNT(DISTINCT f.vuln_id) AS open
+             FROM findings f JOIN assets a ON a.id = f.asset_id WHERE f.resolved_at IS NULL AND NOT ${EXCEPTED}
+             GROUP BY a.id ORDER BY critical DESC, high DESC, open DESC LIMIT 8`,
+          )
+          .all(at) as Array<{ id: string; kind: Kind; name: string; critical: number; high: number; open: number }>
+      ).map((r) => ({ ...r }));
+      const topPackages = (
+        db
+          .prepare(
+            `SELECT f.pkg_name AS name, COUNT(DISTINCT f.vuln_id) AS open, MAX(${RANK}) AS rank, COUNT(DISTINCT f.asset_id) AS assets
+             FROM findings f WHERE f.resolved_at IS NULL AND NOT ${EXCEPTED} GROUP BY f.pkg_name ORDER BY rank DESC, open DESC LIMIT 8`,
+          )
+          .all(at) as Array<{ name: string; open: number; rank: number; assets: number }>
+      ).map((r) => ({ name: r.name, open: r.open, assets: r.assets, severity: BY_RANK[r.rank]! }));
+      const fix = { fixed: 0, notFixed: 0, wontFix: 0 };
+      // A vulnerability counts once, as fixed when any of its packages has a fix.
+      for (const r of db
+        .prepare(
+          `SELECT state, COUNT(*) AS n FROM (
+             SELECT CASE WHEN SUM(f.fix_state = 'fixed') > 0 THEN 'fixed' WHEN SUM(f.fix_state = 'wont-fix') > 0 THEN 'wont-fix' ELSE 'not-fixed' END AS state
+             FROM findings f WHERE f.resolved_at IS NULL AND NOT ${EXCEPTED} GROUP BY f.vuln_id
+           ) GROUP BY state`,
+        )
+        .all(at) as Array<{ state: string; n: number }>) {
+        if (r.state === "fixed") fix.fixed += r.n;
+        else if (r.state === "wont-fix") fix.wontFix += r.n;
+        else fix.notFixed += r.n;
+      }
+      return { weeks, topAssets, topPackages, fix };
+    },
+
     // ---- Exceptions
 
     listExceptions() {

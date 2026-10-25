@@ -48,6 +48,32 @@
     "inTheHostsFileNo_other": "Sunucu listesindeki {{count}} sunucunun taraması yok",
     "whatToDo": "Oraya vulns-agent kurun ya da sunucuyu adıyla veya adresiyle bildirdiğini kontrol edin."
   },
+  "overviewPage": {
+    "overview": "Genel bakış",
+    "assets": "Varlıklar",
+    "hostsAndImages": "{{hosts}} sunucu, {{images}} imaj",
+    "failed_one": "{{count}} eşleştirilemedi",
+    "failed_other": "{{count}} eşleştirilemedi",
+    "bySeverity": "Öneme göre",
+    "bySeverityDetail": "Şu an açık zafiyetler, her biri en kötü hâliyle bir kez sayılır.",
+    "open": "açık",
+    "foundAndFixed": "Bulunan ve düzeltilen",
+    "foundAndFixedDetail": "Son 12 haftanın her birinde ilk kez bulunan ve düzeltilen zafiyetler.",
+    "found": "Bulunan",
+    "fixed": "Düzeltilen",
+    "haveAFix": "Düzeltmesi olan",
+    "haveAFixDetail": "En az bir pakette düzeltilmiş sürümü olan açık zafiyetler.",
+    "ofOpen": "{{open}} açıktan {{fixed}}",
+    "noFixYet": "Henüz düzeltme yok",
+    "wontFix": "Düzeltilmeyecek",
+    "topAssets": "Önce düzeltilecek varlıklar",
+    "topAssetsDetail": "En çok kritik, sonra yüksek zafiyet; çubuk tüm açık zafiyetlerdir, her biri bir kez sayılır.",
+    "topPackages": "Güncellenecek paketler",
+    "topPackagesDetail": "En kötü önem önce; çubuk her birindeki zafiyet sayısıdır.",
+    "onAssets_one": "{{count}} varlıkta",
+    "onAssets_other": "{{count}} varlıkta",
+    "nothingOpen": "Açık bir şey yok"
+  },
   "findingsPage": {
     "severity": "Önem",
     "vulnerability": "Zafiyet",
@@ -220,6 +246,7 @@
     "signOut": "Çıkış yap"
   },
   "product": {
+    "overview": "Genel bakış",
     "findings": "Bulgular",
     "hosts": "Sunucular",
     "images": "İmajlar",

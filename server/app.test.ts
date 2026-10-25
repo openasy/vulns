@@ -354,6 +354,28 @@ describe("SBOMs and findings", () => {
     expect(total(s.days[0]!)).toBe(0);
   });
 
+  it("draws the overview: found and fixed each week, the worst assets and packages, and fixes", async () => {
+    await upload("host", "web-1", sbom(...ALL_PACKAGES));
+    await upload("image", "app:1", sbom("perl-base"));
+    await upload("host", "web-1", sbom("perl-base", "libtasn1-6"));
+    type Overview = {
+      weeks: Array<{ week: string; new: number; fixed: number }>;
+      topAssets: Array<{ name: string; kind: string; critical: number; high: number; open: number }>;
+      topPackages: Array<{ name: string; open: number; assets: number; severity: string }>;
+      fix: { fixed: number; notFixed: number; wontFix: number };
+    };
+    const o = await get<Overview>("/api/v1/overview");
+    expect(o.weeks).toHaveLength(12);
+    expect(o.weeks.at(-1)).toMatchObject({ new: 4, fixed: 2 });
+    expect(o.weeks.slice(0, -1).every((w) => w.new === 0 && w.fixed === 0)).toBe(true);
+    expect(o.topAssets.map((a) => a.name).sort()).toEqual(["app:1", "web-1"]);
+    expect(o.topAssets.find((a) => a.name === "web-1")!.open).toBe(2);
+    expect(o.topPackages.map((p) => p.name).sort()).toEqual(["libtasn1-6", "perl-base"]);
+    expect(o.topPackages.find((p) => p.name === "perl-base")!.assets).toBe(2);
+    const s = await get<{ open: Record<string, number> }>("/api/v1/summary");
+    expect(o.fix.fixed + o.fix.notFixed + o.fix.wontFix).toBe(Object.values(s.open).reduce((a, b) => a + b, 0));
+  });
+
   it("keeps the SBOM for export and deletes everything with the asset", async () => {
     const body = sbom("perl-base");
     const { id } = (await (await upload("image", "app:1", body)).json()) as { id: string };

@@ -48,6 +48,32 @@
     "inTheHostsFileNo_other": "{{count}} Server in der Hostdatei haben keinen Scan",
     "whatToDo": "Installieren Sie dort vulns-agent, oder prüfen Sie, dass er den Server unter seinem Namen oder seiner Adresse meldet."
   },
+  "overviewPage": {
+    "overview": "Übersicht",
+    "assets": "Assets",
+    "hostsAndImages": "{{hosts}} Hosts, {{images}} Images",
+    "failed_one": "{{count}} konnte nicht abgeglichen werden",
+    "failed_other": "{{count}} konnten nicht abgeglichen werden",
+    "bySeverity": "Nach Schweregrad",
+    "bySeverityDetail": "Jetzt offene Schwachstellen, jede einmal mit ihrem schlimmsten Wert gezählt.",
+    "open": "offen",
+    "foundAndFixed": "Gefunden und behoben",
+    "foundAndFixedDetail": "Schwachstellen, die in jeder der letzten 12 Wochen zuerst gefunden und behoben wurden.",
+    "found": "Gefunden",
+    "fixed": "Behoben",
+    "haveAFix": "Mit Korrektur",
+    "haveAFixDetail": "Offene Schwachstellen mit einer korrigierten Version in mindestens einem Paket.",
+    "ofOpen": "{{fixed}} von {{open}} offenen",
+    "noFixYet": "Noch keine Korrektur",
+    "wontFix": "Wird nicht behoben",
+    "topAssets": "Zuerst zu behebende Assets",
+    "topAssetsDetail": "Die meisten kritischen, dann hohen Schwachstellen; der Balken zeigt alle offenen, jede einmal gezählt.",
+    "topPackages": "Zu aktualisierende Pakete",
+    "topPackagesDetail": "Schlimmster Schweregrad zuerst; der Balken zeigt die Zahl der Schwachstellen.",
+    "onAssets_one": "Auf {{count}} Asset",
+    "onAssets_other": "Auf {{count}} Assets",
+    "nothingOpen": "Nichts offen"
+  },
   "findingsPage": {
     "severity": "Schweregrad",
     "vulnerability": "Schwachstelle",
@@ -220,6 +246,7 @@
     "signOut": "Abmelden"
   },
   "product": {
+    "overview": "Übersicht",
     "findings": "Befunde",
     "hosts": "Hosts",
     "images": "Images",

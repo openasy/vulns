@@ -48,6 +48,32 @@
     "inTheHostsFileNo_other": "{{count}} servers in the hosts file have no scan",
     "whatToDo": "Install vulns-agent there, or check that it reports the server under its name or address."
   },
+  "overviewPage": {
+    "overview": "Overview",
+    "assets": "Assets",
+    "hostsAndImages": "{{hosts}} hosts, {{images}} images",
+    "failed_one": "{{count}} could not be matched",
+    "failed_other": "{{count}} could not be matched",
+    "bySeverity": "By severity",
+    "bySeverityDetail": "Open vulnerabilities now, each counted once at its worst.",
+    "open": "open",
+    "foundAndFixed": "Found and fixed",
+    "foundAndFixedDetail": "Vulnerabilities first found and last fixed in each of the last 12 weeks.",
+    "found": "Found",
+    "fixed": "Fixed",
+    "haveAFix": "Have a fix",
+    "haveAFixDetail": "Open vulnerabilities with a fixed version in at least one package.",
+    "ofOpen": "{{fixed}} of {{open}} open",
+    "noFixYet": "No fix yet",
+    "wontFix": "Won't fix",
+    "topAssets": "Assets to fix first",
+    "topAssetsDetail": "Most critical, then high vulnerabilities; the bar is every open vulnerability, each counted once.",
+    "topPackages": "Packages to update",
+    "topPackagesDetail": "Worst severity first; the bar is how many vulnerabilities each has.",
+    "onAssets_one": "On {{count}} asset",
+    "onAssets_other": "On {{count}} assets",
+    "nothingOpen": "Nothing open"
+  },
   "findingsPage": {
     "severity": "Severity",
     "vulnerability": "Vulnerability",
@@ -220,6 +246,7 @@
     "signOut": "Sign out"
   },
   "product": {
+    "overview": "Overview",
     "findings": "Findings",
     "hosts": "Hosts",
     "images": "Images",

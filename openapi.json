@@ -284,6 +284,49 @@
         "description": "Needs the viewer role."
       }
     },
+    "/api/v1/overview": {
+      "get": {
+        "operationId": "getOverview",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Get what the overview draws",
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What the overview draws.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-openasy-role": "viewer",
+        "description": "Vulnerabilities found and fixed in each of the last 12 weeks, the assets and packages with the most open ones, and how many open ones have a fix. Excepted findings are left out.\n\nNeeds the viewer role."
+      }
+    },
     "/api/v1/assets": {
       "get": {
         "operationId": "listAssets",
@@ -2633,6 +2676,133 @@
                 "address": {
                   "type": "string"
                 }
+              }
+            }
+          }
+        }
+      },
+      "Overview": {
+        "type": "object",
+        "required": [
+          "weeks",
+          "topAssets",
+          "topPackages",
+          "fix"
+        ],
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "description": "Oldest first; a week starts on the date given.",
+            "items": {
+              "type": "object",
+              "required": [
+                "week",
+                "new",
+                "fixed"
+              ],
+              "properties": {
+                "week": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "new": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "fixed": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "topAssets": {
+            "type": "array",
+            "description": "Most critical, then high, then open vulnerabilities first, each counted once however many packages it is in; eight at most.",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind",
+                "name",
+                "critical",
+                "high",
+                "open"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "$ref": "#/components/schemas/Kind"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "critical": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "high": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "open": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "topPackages": {
+            "type": "array",
+            "description": "Worst severity, then most vulnerabilities first; eight at most.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "open",
+                "assets",
+                "severity"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "open": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "assets": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "severity": {
+                  "$ref": "#/components/schemas/Severity"
+                }
+              }
+            }
+          },
+          "fix": {
+            "type": "object",
+            "description": "Open vulnerabilities by whether a fix exists; one with a fix in any package counts as fixed.",
+            "required": [
+              "fixed",
+              "notFixed",
+              "wontFix"
+            ],
+            "properties": {
+              "fixed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "notFixed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "wontFix": {
+                "type": "integer",
+                "minimum": 0
               }
             }
           }
