@@ -1323,7 +1323,7 @@
       "apiToken": {
         "type": "http",
         "scheme": "bearer",
-        "description": "An API token created under Settings → API tokens (`oa_vulns_...`): one role, always an expiry (ADR 0003)."
+        "description": "An API token created under Settings \u2192 API tokens (`oa_vulns_...`): one role, always an expiry (ADR 0003)."
       },
       "adminToken": {
         "type": "http",
@@ -2315,7 +2315,8 @@
           "knownExploited",
           "fixable",
           "feed",
-          "hostsFile"
+          "hostsFile",
+          "days"
         ],
         "additionalProperties": false,
         "properties": {
@@ -2363,6 +2364,27 @@
               }
             ],
             "description": "null when OPENASY_HOSTS is not set."
+          },
+          "days": {
+            "type": "array",
+            "description": "Open vulnerabilities at the end of each of the last 30 days (UTC), by severity, oldest first. The last is now, the same as open. What an exception hid on a day is left out of that day.",
+            "items": {
+              "type": "object",
+              "required": [
+                "day",
+                "open"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "open": {
+                  "$ref": "#/components/schemas/SeverityCounts"
+                }
+              }
+            }
           }
         }
       },

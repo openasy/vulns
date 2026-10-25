@@ -32,6 +32,8 @@ export interface Summary {
   fixable: number;
   feed: Feed;
   hostsFile: HostsCoverage | null;
+  /** Open at the end of each of the last 30 days (UTC), oldest first; the last is now. */
+  days: Array<{ day: string; open: Counts }>;
 }
 
 /** The hosts file (ADR 0052) and the servers in it this product has nothing for. */

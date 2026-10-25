@@ -20,38 +20,27 @@ import {
   SearchInput,
   SegmentedControl,
   SelectField,
+  SEVERITY_META,
   SeverityBadge,
+  StackedBarChart,
   StatusBadge,
   Switch,
   Tabs,
   TextField,
+  TONE_COLORS,
   usePath,
   type Column,
   type ProductId,
   type Severity as UiSeverity,
   useThemePreference,
   useAgo,
+  toLocale,
+  useLocalePreference,
 } from "@openasy/ui";
-import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAuth, useInstallBrand } from "@openasy/auth/react";
+import { AccountSettings, AuthGate, MembersSettings, SignInSettings, TokensSettings, useAccountMenu, useAuth, useInstallBrand } from "@openasy/auth/react";
 import colophon from "virtual:openasy-colophon";
-import {
-  Boxes,
-  Download,
-  KeyRound,
-  LogIn,
-  LogOut,
-  Play,
-  RefreshCw,
-  Server,
-  Settings2,
-  ShieldOff,
-  Trash2,
-  TriangleAlert,
-  UserRound,
-  Users,
-  X,
-} from "lucide-react";
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { Boxes, Download, KeyRound, LogIn, LogOut, Play, RefreshCw, Server, ShieldOff, Trash2, TriangleAlert, UserRound, Users, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   api,
   MfaSetupRequired,
@@ -70,6 +59,7 @@ import {
   type VulnerabilityDetail,
 } from "./api.ts";
 import { useT, type T } from "./i18n.ts";
+import { search } from "./search.ts";
 
 // Grype's "negligible" and "unknown" have no level of their own in the shared scale.
 const ui = (s: Severity): UiSeverity => (s === "negligible" || s === "unknown" ? "info" : s);
@@ -210,7 +200,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
       }
     >
       {!detail ? (
-        <p className="text-sm text-fg-muted">Loading…</p>
+        <p className="text-sm text-fg-muted">{t("common.loading")}</p>
       ) : (
         <div className="flex flex-col gap-3 text-sm">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -318,15 +308,8 @@ function HostsCoverageNote({ file }: { file?: HostsCoverage | null }) {
   }
   if (!file.missing.length) return null;
   return (
-    <Callout
-      tone="warning"
-      title={t("hostsCoverageNote.inTheHostsFileNo", {
-        length: file.missing.length,
-        value: file.missing.length === 1 ? "server" : "servers",
-        value2: file.missing.length === 1 ? "has" : "have",
-      })}
-    >
-      {file.missing.map((h) => h.name).join(", ")}. Install vulns-agent there, or check that it reports the server under its name or address.
+    <Callout tone="warning" title={t("hostsCoverageNote.inTheHostsFileNo", { count: file.missing.length })}>
+      {file.missing.map((h) => h.name).join(", ")}. {t("hostsCoverageNote.whatToDo")}
     </Callout>
   );
 }
@@ -339,7 +322,8 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
   const [kev, setKev] = useState(false);
   const [fixable, setFixable] = useState(false);
   const [kind, setKind] = useState<"all" | Kind>("all");
-  const [q, setQ] = useState("");
+  // The search window opens this page at a vulnerability with ?q=.
+  const [q, setQ] = useState(() => new URLSearchParams(location.search).get("q") ?? "");
   const [rows, setRows] = useState<Vulnerability[]>();
   const [more, setMore] = useState<string>();
   const [open, setOpen] = useState<Vulnerability | null>(null);
@@ -442,7 +426,7 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
             ? t("findingsPage.vulnerabilityDataOsAdvisoriesGithub", {
                 plural: t("plurals.host", { count: s.assets.hosts }),
                 plural2: t("plurals.image", { count: s.assets.images }),
-                value: s.feed.built ? `built ${ago(s.feed.built)}` : "not downloaded yet",
+                value: s.feed.built ? t("findingsPage.builtAgo", { ago: ago(s.feed.built) }) : t("findingsPage.notDownloadedYet"),
               })
             : undefined
         }
@@ -459,6 +443,25 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
           <KpiCard label={t("findingsPage.low")} value={s.open.low} footer={<SeverityBadge severity="low" />} />
           <KpiCard label={t("findingsPage.fixAvailable")} value={s.fixable} tone="info" />
         </KpiGrid>
+      )}
+      {s && (
+        <Panel title={t("findingsPage.openOverTime")} description={t("findingsPage.atTheEndOfEach")}>
+          <StackedBarChart
+            label={t("findingsPage.openVulnerabilitiesEachDayBy")}
+            categories={s.days.map((d) => new Date(`${d.day}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }))}
+            segments={[
+              { id: "other", name: t("findingsPage.other"), color: TONE_COLORS.neutral },
+              ...(["low", "medium", "high", "critical"] as const).map((l) => ({
+                id: l,
+                name: SEVERITY_META[l].label,
+                color: TONE_COLORS[SEVERITY_META[l].tone],
+              })),
+            ]}
+            values={s.days.map((d) => [d.open.negligible + d.open.unknown, d.open.low, d.open.medium, d.open.high, d.open.critical])}
+            height={140}
+            xTicks={6}
+          />
+        </Panel>
       )}
       <Tabs<Tab>
         label={t("findingsPage.findingViews")}
@@ -868,7 +871,11 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
       id: "scope",
       header: t("exceptionsPage.on"),
       cell: (e) =>
-        e.asset ? <EntityChip kind={e.asset.kind === "host" ? "host" : "container"} value={e.asset.name} href={`/assets/${e.asset.id}`} /> : "Every asset",
+        e.asset ? (
+          <EntityChip kind={e.asset.kind === "host" ? "host" : "container"} value={e.asset.name} href={`/assets/${e.asset.id}`} />
+        ) : (
+          t("exceptionsPage.everyAsset")
+        ),
     },
     { id: "reason", header: t("exceptionsPage.reason"), width: "36%", cell: (e) => <span className="text-xs">{e.reason}</span> },
     {
@@ -1136,7 +1143,9 @@ function SettingsPage({ page }: { page: "account" | "members" | "signin" | "toke
 function Product() {
   const msg = useT();
   const [theme, setTheme] = useThemePreference();
+  const [, setLocale] = useLocalePreference();
   const { me, can } = useAuth();
+  const account = useAccountMenu();
   const [version, setVersion] = useState<string>();
   const route = parseRoute(usePath());
   const [summary, setSummary] = useState<Summary>();
@@ -1147,6 +1156,7 @@ function Product() {
   }, []);
 
   const call = useApi();
+  const onSearch = useMemo(() => search(call, msg), [call, msg]);
   // The install's other products (OPENASY_PRODUCTS), for the switcher; ids this UI does not know are left out.
   useEffect(() => {
     void call<{ products: ProductLink[] }>("/api/v1/products").then(
@@ -1172,7 +1182,6 @@ function Product() {
     { id: "exceptions", label: msg("product.exceptions"), icon: ShieldOff },
   ];
   const footerNav = [
-    { id: "setup", label: msg("product.setup"), icon: Settings2 },
     ...(can("admin")
       ? [
           { id: "members", label: msg("product.members"), icon: Users },
@@ -1189,6 +1198,7 @@ function Product() {
     <AppShell
       product="vulnerabilities"
       about={colophon}
+      onSearch={onSearch}
       nav={nav}
       activeNav={active}
       onNavigate={(id) => navigate(`/${id}`)}
@@ -1197,15 +1207,17 @@ function Product() {
         const to = products.find((p) => p.id === id);
         if (to) window.location.assign(to.url);
       }}
-      footerNav={footerNav}
-      user={{ name: me.user.name, role: roleName }}
+      footerNav={account.settings(footerNav)}
+      setup
+      user={{ name: me.user.name, role: roleName, ...account.user }}
       theme={theme}
       onThemeChange={setTheme}
+      onLanguageChange={(code) => setLocale(toLocale(code))}
     >
       {route.page === "findings" && summary && summary.assets.hosts + summary.assets.images === 0 ? (
         <WelcomePage call={call} feed={summary.feed} reload={reload} version={version} />
       ) : route.page === "findings" ? (
-        <FindingsPage call={call} summary={summary} reload={reload} />
+        <FindingsPage key={location.search} call={call} summary={summary} reload={reload} />
       ) : route.page === "hosts" || route.page === "images" ? (
         <AssetsPage key={route.page} call={call} kind={route.page === "hosts" ? "host" : "image"} />
       ) : route.page === "asset" ? (
@@ -1224,9 +1236,10 @@ function Product() {
 export function App() {
   const installBrand = useInstallBrand();
   const [theme] = useThemePreference();
+  const [locale] = useLocalePreference();
   return (
     // The install's brand from config/brand.env (ADR 0053); OpenAsy's own look where it sets none.
-    <BrandProvider theme={theme} brand={{ name: "OpenAsy", organization: undefined, ...installBrand }} className="min-h-screen">
+    <BrandProvider theme={theme} locale={locale} brand={{ name: "OpenAsy", organization: undefined, ...installBrand }} className="min-h-screen">
       <AuthGate product="OpenAsy Vulnerabilities">
         <Product />
       </AuthGate>

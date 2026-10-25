@@ -338,6 +338,22 @@ describe("SBOMs and findings", () => {
     expect(resolved.findings[0]!.resolvedAt).toBeTruthy();
   });
 
+  it("counts what was open at the end of each day, by severity", async () => {
+    await upload("host", "web-1", sbom(...ALL_PACKAGES));
+    app.db.prepare("UPDATE findings SET first_seen = ?").run(new Date(Date.now() - 5 * 86_400_000).toISOString());
+    // libc-bin was upgraded today: its two vulnerabilities were open until now.
+    await upload("host", "web-1", sbom("perl-base", "libtasn1-6"));
+    type Day = { day: string; open: Record<string, number> };
+    const s = await get<{ open: Record<string, number>; days: Day[] }>("/api/v1/summary");
+    const total = (d: Day) => Object.values(d.open).reduce((a, b) => a + b, 0);
+    expect(s.days).toHaveLength(30);
+    expect(s.days.at(-1)!.day).toBe(new Date().toISOString().slice(0, 10));
+    expect(s.days.at(-1)!.open).toEqual(s.open);
+    expect(total(s.days.at(-1)!)).toBe(2);
+    expect(total(s.days.at(-2)!)).toBe(4);
+    expect(total(s.days[0]!)).toBe(0);
+  });
+
   it("keeps the SBOM for export and deletes everything with the asset", async () => {
     const body = sbom("perl-base");
     const { id } = (await (await upload("image", "app:1", body)).json()) as { id: string };

@@ -40,6 +40,7 @@ const VULN_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/;
 const MAX_EXCEPTION_DAYS = 366;
 
 const now = () => new Date().toISOString();
+const DAY = 86_400_000;
 const bad = (detail: string) => new VulnsError(422, "invalid-body", detail);
 const notFound = (what: string) => new VulnsError(404, "not-found", `${what} does not exist.`);
 
@@ -256,6 +257,27 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
 
   const EXCEPTED = `EXISTS (SELECT 1 FROM exceptions e WHERE e.vuln_id = f.vuln_id AND (e.asset_id IS NULL OR e.asset_id = f.asset_id) AND e.expires_at > ?)`;
 
+  /**
+   * Open vulnerabilities at the end of each of the last 30 days (UTC), by severity, oldest first; today's is now, the
+   * same as the summary's open. Grouped as the list groups them, without what an exception hid then.
+   */
+  function openByDay() {
+    const at = now();
+    const today = Math.floor(Date.parse(at) / DAY) * DAY;
+    const query = db.prepare(
+      `SELECT MAX(${RANK}) AS rank FROM findings f WHERE f.first_seen <= ? AND (f.resolved_at IS NULL OR f.resolved_at > ?)
+         AND NOT EXISTS (SELECT 1 FROM exceptions e WHERE e.vuln_id = f.vuln_id AND (e.asset_id IS NULL OR e.asset_id = f.asset_id) AND e.created_at <= ? AND e.expires_at > ?)
+       GROUP BY f.vuln_id, f.pkg_source, f.pkg_type`,
+    );
+    return Array.from({ length: 30 }, (_, i) => {
+      const start = today - (29 - i) * DAY;
+      const end = i === 29 ? at : new Date(start + DAY).toISOString();
+      const open = zero();
+      for (const g of query.all(end, end, end, end) as Array<{ rank: number }>) open[BY_RANK[g.rank]!]++;
+      return { day: new Date(start).toISOString().slice(0, 10), open };
+    });
+  }
+
   function openCounts(assetIds: string[]): Map<string, { counts: Counts; kev: number; fixable: number }> {
     const out = new Map<string, { counts: Counts; kev: number; fixable: number }>();
     if (!assetIds.length) return out;
@@ -471,6 +493,7 @@ export function createVulns(db: DatabaseSync, matcher: Matcher, { retentionDays 
         knownExploited: groups.filter((g) => g.kev === 1).length,
         fixable: groups.filter((g) => g.fixable === 1).length,
         feed: feedDto(),
+        days: openByDay(),
       };
     },
 

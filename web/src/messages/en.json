@@ -44,7 +44,9 @@
   "hostsCoverageNote": {
     "itsLastGoodVersionIs": "{{error}}Its last good version is used until it is fixed ({{path}}).",
     "theHostsFileIsNot": "The hosts file is not applied",
-    "inTheHostsFileNo": "{{length}} {{value}} in the hosts file {{value2}} no scan"
+    "inTheHostsFileNo_one": "{{count}} server in the hosts file has no scan",
+    "inTheHostsFileNo_other": "{{count}} servers in the hosts file have no scan",
+    "whatToDo": "Install vulns-agent there, or check that it reports the server under its name or address."
   },
   "findingsPage": {
     "severity": "Severity",
@@ -56,6 +58,10 @@
     "exploited": "Exploited",
     "ransomware": "Ransomware",
     "fixAvailable": "Fix available",
+    "openOverTime": "Open over time",
+    "atTheEndOfEach": "At the end of each of the last 30 days, without what an exception hid then.",
+    "openVulnerabilitiesEachDayBy": "Open vulnerabilities at the end of each day, by severity",
+    "other": "Other",
     "wonTFix": "Won't fix",
     "noFixYet": "No fix yet",
     "findings": "Findings",
@@ -82,7 +88,9 @@
     "noAcceptedRisks": "No accepted risks",
     "nothingHasBeenScannedYet": "Nothing has been scanned yet. See",
     "setup": "Setup",
-    "nothingMatchesTheseFilters": "Nothing matches these filters."
+    "nothingMatchesTheseFilters": "Nothing matches these filters.",
+    "builtAgo": "built {{ago}}",
+    "notDownloadedYet": "not downloaded yet"
   },
   "matchStatus": {
     "failed": "Failed",
@@ -158,7 +166,8 @@
     "exceptions": "Exceptions",
     "acceptedRisksHideAVulnerability": "Accepted risks hide a vulnerability until they expire. Add one from a finding's details.",
     "noExceptions": "No exceptions",
-    "everyOpenFindingIsShown": "Every open finding is shown."
+    "everyOpenFindingIsShown": "Every open finding is shown.",
+    "everyAsset": "Every asset"
   },
   "stepTitle": {
     "step": "Step {{n}}:"
@@ -226,5 +235,15 @@
     "host_other": "{{count}} hosts",
     "image_one": "{{count}} image",
     "image_other": "{{count}} images"
+  },
+  "search": {
+    "vulnerability": "Vulnerability",
+    "host": "Host",
+    "image": "Image",
+    "vulnerabilityDetail": "{{package}} {{versions}} · {{hosts}} hosts, {{images}} images",
+    "assetDetail": "{{distro}} · {{open}} open"
+  },
+  "common": {
+    "loading": "Loading…"
   }
 }
