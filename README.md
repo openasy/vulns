@@ -154,6 +154,10 @@ docker run -d --name vulns-agent --restart unless-stopped --hostname "$(hostname
 It scans on start and every 6 hours, and when someone clicks *Scan now*. On Kubernetes the chart runs it on every
 node instead (see [Kubernetes](#kubernetes)).
 
+Hosts that [Infrastructure](https://github.com/openasy/infra) reads need no agent: give it `INFRA_VULNS_URL` and
+`VULNS_INGEST_TOKEN` as `INFRA_VULNS_TOKEN`, and it sends each host's packages as a CycloneDX SBOM when they change.
+An SBOM that names no CPEs gets the ones Syft would write, so the findings match a scan with the agent.
+
 ### Images
 
 Send an SBOM from CI after each build. With `wait=true` the answer is the matched asset, so the job can fail on it:

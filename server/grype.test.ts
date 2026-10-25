@@ -43,7 +43,12 @@ describe("createGrype", () => {
     const [call] = calls();
     expect(call!.args.slice(1)).toEqual(["-o", "json", "-q"]);
     expect(call!.sbom).toBe('{"artifacts":[]}');
-    expect(call!.env).toMatchObject({ GRYPE_DB_AUTO_UPDATE: "false", GRYPE_CHECK_FOR_APP_UPDATE: "false", GRYPE_DB_CACHE_DIR: join(dir, "data") });
+    expect(call!.env).toMatchObject({
+      GRYPE_DB_AUTO_UPDATE: "false",
+      GRYPE_CHECK_FOR_APP_UPDATE: "false",
+      GRYPE_ADD_CPES_IF_NONE: "true",
+      GRYPE_DB_CACHE_DIR: join(dir, "data"),
+    });
     expect(readdirSync(tmp)).toEqual([]);
   });
 

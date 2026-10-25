@@ -150,6 +150,9 @@ export function createGrype({ bin, dataDir, tmpDir, updateUrl, timeoutMs = 10 * 
     GRYPE_DB_VALIDATE_BY_HASH_ON_START: "false",
     GRYPE_DB_UPDATE_DOWNLOAD_TIMEOUT: "30m",
     GRYPE_CHECK_FOR_APP_UPDATE: "false",
+    // An SBOM without CPEs, such as the CycloneDX Infrastructure sends for a host, gets the ones Syft would have
+    // written, so Alpine packages are matched against NVD too, as a scan on the host would.
+    GRYPE_ADD_CPES_IF_NONE: "true",
     ...(updateUrl && { GRYPE_DB_UPDATE_URL: updateUrl }),
   };
 
