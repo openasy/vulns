@@ -3,7 +3,7 @@
 # Grype matches SBOMs against vulnerability data. Pinned by digest (ADR 0027); Dependabot proposes updates.
 FROM anchore/grype:v0.120.1@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe AS grype
 
-FROM node:26.12.0-trixie-slim AS build
+FROM node:26.12.1-trixie-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
