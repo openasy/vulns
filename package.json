@@ -1,6 +1,6 @@
 {
   "name": "@openasy/vulns",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "OpenAsy Vulnerabilities: OS package and container image CVEs from SBOMs, ranked by exploitability.",
   "license": "AGPL-3.0-only",

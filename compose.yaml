@@ -9,7 +9,7 @@
 # The first start downloads about 200 MB of vulnerability data (3 GB unpacked on the volume).
 services:
   vulns:
-    image: ghcr.io/openasy/vulns:0.6.0
+    image: ghcr.io/openasy/vulns:0.7.0
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
@@ -35,7 +35,7 @@ services:
       # VULNS_FEED_UPDATE_HOURS: "0"   # air-gapped: no downloads, import the data with PUT /api/v1/feed
 
   vulns-agent:
-    image: ghcr.io/openasy/vulns-agent:0.6.0
+    image: ghcr.io/openasy/vulns-agent:0.7.0
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
