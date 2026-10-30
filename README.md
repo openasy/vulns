@@ -293,6 +293,5 @@ See [openasy.github.io/principles](https://openasy.github.io/principles) and the
 ## Licence
 
 [AGPL-3.0](./LICENSE). You may use, change and share it; if you run a changed version for others, including as a
-hosted service, you must offer them your source code under the same licence. A commercial licence without these
-obligations is available: see [ADR 0008](https://github.com/openasy/openasy.github.io/blob/main/docs/decisions/0008-open-source.md).
+hosted service, you must offer them your source code under the same licence ([ADR 0008](https://github.com/openasy/openasy.github.io/blob/main/docs/decisions/0008-open-source.md)).
 "OpenAsy" and its logo are trademarks and are not covered by the licence. Grype and Syft are Apache-2.0, by Anchore.
