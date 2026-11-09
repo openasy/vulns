@@ -148,7 +148,7 @@ Run [vulns-agent](https://github.com/openasy/vulns-agent) on each host with the 
 docker run -d --name vulns-agent --restart unless-stopped --hostname "$(hostname)" \
   --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
   -v /:/host:ro -e VULNS_URL=https://vulns.example.com -e VULNS_INGEST_TOKEN=... \
-  ghcr.io/openasy/vulns-agent:0.7.1
+  ghcr.io/openasy/vulns-agent:0.7.2
 ```
 
 It scans on start and every 6 hours, and when someone clicks *Scan now*. On Kubernetes the chart runs it on every
@@ -245,7 +245,7 @@ Measured on 0.1.0: about 80 MB of memory at idle; matching a Debian 12 image (88
 Images are signed with cosign (keyless), carry an SPDX SBOM attestation and SLSA level 3 provenance.
 
 ```bash
-cosign verify ghcr.io/openasy/vulns:0.7.1 \
+cosign verify ghcr.io/openasy/vulns:0.7.2 \
   --certificate-identity-regexp '^https://github.com/openasy/vulns/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 slsa-verifier verify-image ghcr.io/openasy/vulns@sha256:<digest> --source-uri github.com/openasy/vulns
