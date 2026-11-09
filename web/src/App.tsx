@@ -707,7 +707,7 @@ function FindingsPage({ call, summary, reload }: { call: Call; summary?: Summary
               <EmptyState title={tab === "open" ? t("findingsPage.noOpenFindings") : t("findingsPage.noAcceptedRisks")}>
                 {s && s.assets.hosts + s.assets.images === 0 ? (
                   <>
-                    {t("findingsPage.nothingHasBeenScannedYet")} <a href="/setup">{t("findingsPage.setup")}</a> to add hosts and images.
+                    {t("findingsPage.nothingHasBeenScannedYet")} <a href="/setup">{t("findingsPage.setup")}</a> {t("findingsPage.toAddHostsAndImages")}
                   </>
                 ) : (
                   t("findingsPage.nothingMatchesTheseFilters")
@@ -1219,8 +1219,8 @@ function HostsPanel({ version, step }: { version?: string; step?: number }) {
   --set vulns.enabled=false --set agent.url=${origin} --set auth.ingestToken=...`}</Code>
           <p className="mt-2 text-sm text-fg-muted">
             {t("hostsPanel.theAgentMountsEachNode")}{" "}
-            <code className="font-mono text-xs">kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged</code>. Clusters that forbid
-            hostPath entirely, such as GKE Autopilot, cannot run it.
+            <code className="font-mono text-xs">kubectl label namespace openasy pod-security.kubernetes.io/enforce=privileged</code>.{" "}
+            {t("hostsPanel.autopilotCannotRunIt")}
           </p>
         </>
       )}
@@ -1269,7 +1269,7 @@ function WelcomePage({ call, feed, reload, version }: { call: Call; feed?: Feed;
       <HostsPanel version={version} step={2} />
       <ImagesPanel step={3} />
       <p className="m-0 text-sm text-fg-muted">
-        {t("welcomePage.vulnsAgentSendsVulnsIngest")} <a href="/tokens">{t("welcomePage.apiTokens")}</a>. Everything here is also in the{" "}
+        {t("welcomePage.vulnsAgentSendsVulnsIngest")} <a href="/tokens">{t("welcomePage.apiTokens")}</a>. {t("welcomePage.everythingHereIsAlsoIn")}{" "}
         <a href="/api/docs/">API</a>.
       </p>
     </>

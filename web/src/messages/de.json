@@ -112,11 +112,12 @@
     "vulnerabilityFindings": "Schwachstellenbefunde",
     "noOpenFindings": "Keine offenen Befunde",
     "noAcceptedRisks": "Keine akzeptierten Risiken",
-    "nothingHasBeenScannedYet": "Es wurde noch nichts gescannt. Siehe",
+    "nothingHasBeenScannedYet": "Es wurde noch nichts gescannt. Fügen Sie unter",
     "setup": "Einrichtung",
     "nothingMatchesTheseFilters": "Nichts passt zu diesen Filtern.",
     "builtAgo": "erstellt {{ago}}",
-    "notDownloadedYet": "noch nicht heruntergeladen"
+    "notDownloadedYet": "noch nicht heruntergeladen",
+    "toAddHostsAndImages": "Hosts und Images hinzu."
   },
   "matchStatus": {
     "failed": "Fehlgeschlagen",
@@ -222,7 +223,8 @@
     "kubernetes": "Kubernetes",
     "onEachHost": "Auf jedem Host:",
     "oncePerClusterTheHelm": "Einmal pro Cluster: Das Helm-Chart führt vulns-agent auf jedem Knoten aus, auch auf neuen. Knoten erscheinen unter Hosts als Kubernetes-Knoten.",
-    "theAgentMountsEachNode": "Der Agent bindet / jedes Knotens schreibgeschützt ein (hostPath), was die Pod-Security-Stufen baseline und restricted verbieten. Wenn Ihr Cluster sie durchsetzt, erlauben Sie es für diesen Namespace mit"
+    "theAgentMountsEachNode": "Der Agent bindet / jedes Knotens schreibgeschützt ein (hostPath), was die Pod-Security-Stufen baseline und restricted verbieten. Wenn Ihr Cluster sie durchsetzt, erlauben Sie es für diesen Namespace mit",
+    "autopilotCannotRunIt": "Cluster, die hostPath ganz verbieten, etwa GKE Autopilot, können ihn nicht ausführen."
   },
   "imagesPanel": {
     "checkImagesInCi": "Images in CI prüfen",
@@ -238,7 +240,8 @@
     "threeStepsTheVulnerabilityData": "Drei Schritte: die Schwachstellendaten, Ihre Hosts, Ihre Images. Befunde erscheinen hier, sobald der erste Host oder das erste Image abgeglichen ist; Sie können auch nur eines davon senden.",
     "waitingForTheFirstHost": "Warten auf den ersten Host oder das erste Image",
     "vulnsAgentSendsVulnsIngest": "vulns-agent sendet VULNS_INGEST_TOKEN, das dort gesetzt ist, wo Vulnerabilities läuft (mit dem Helm-Chart steht es im Secret des Releases). CI kann es auch verwenden, oder ein API-Token mit der Rolle Bearbeiter aus",
-    "apiTokens": "API-Tokens"
+    "apiTokens": "API-Tokens",
+    "everythingHereIsAlsoIn": "Alles hier gibt es auch in der"
   },
   "settingsPage": {
     "adminsOnly": "Nur für Admins",

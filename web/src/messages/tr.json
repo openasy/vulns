@@ -112,11 +112,12 @@
     "vulnerabilityFindings": "Zafiyet bulguları",
     "noOpenFindings": "Açık bulgu yok",
     "noAcceptedRisks": "Kabul edilen risk yok",
-    "nothingHasBeenScannedYet": "Henüz hiçbir şey taranmadı. Bkz.",
+    "nothingHasBeenScannedYet": "Henüz hiçbir şey taranmadı.",
     "setup": "Kurulum",
     "nothingMatchesTheseFilters": "Bu filtrelerle eşleşen bir şey yok.",
     "builtAgo": "{{ago}} oluşturuldu",
-    "notDownloadedYet": "henüz indirilmedi"
+    "notDownloadedYet": "henüz indirilmedi",
+    "toAddHostsAndImages": "sayfasından sunucu ve imaj ekleyin."
   },
   "matchStatus": {
     "failed": "Başarısız",
@@ -222,7 +223,8 @@
     "kubernetes": "Kubernetes",
     "onEachHost": "Her sunucuda:",
     "oncePerClusterTheHelm": "Küme başına bir kez: Helm chart, yeni düğümler dahil her düğümde vulns-agent çalıştırır. Düğümler Sunucular altında Kubernetes düğümü olarak görünür.",
-    "theAgentMountsEachNode": "Ajan her düğümün / dizinini salt okunur bağlar (hostPath); Pod Security'nin baseline ve restricted düzeyleri bunu yasaklar. Kümeniz bunları zorunlu kılıyorsa bu ad alanı için şununla izin verin:"
+    "theAgentMountsEachNode": "Ajan her düğümün / dizinini salt okunur bağlar (hostPath); Pod Security'nin baseline ve restricted düzeyleri bunu yasaklar. Kümeniz bunları zorunlu kılıyorsa bu ad alanı için şununla izin verin:",
+    "autopilotCannotRunIt": "hostPath'i tamamen yasaklayan kümeler, örneğin GKE Autopilot, ajanı çalıştıramaz."
   },
   "imagesPanel": {
     "checkImagesInCi": "İmajları CI'da kontrol edin",
@@ -238,7 +240,8 @@
     "threeStepsTheVulnerabilityData": "Üç adım: zafiyet verisi, sunucularınız, imajlarınız. Bulgular, ilk sunucu ya da imaj eşleştirilir eşleştirilmez burada görünür; yalnızca birini de gönderebilirsiniz.",
     "waitingForTheFirstHost": "İlk sunucu ya da imaj bekleniyor",
     "vulnsAgentSendsVulnsIngest": "vulns-agent, Vulnerabilities'in çalıştığı yerde ayarlanan VULNS_INGEST_TOKEN'ı gönderir (Helm chart ile sürümün Secret'ındadır). CI da onu ya da düzenleyici rolüne sahip bir API token'ını kullanabilir:",
-    "apiTokens": "API token'ları"
+    "apiTokens": "API token'ları",
+    "everythingHereIsAlsoIn": "Buradaki her şey ayrıca şurada da var:"
   },
   "settingsPage": {
     "adminsOnly": "Yalnızca yöneticiler",

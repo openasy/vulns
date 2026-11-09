@@ -116,7 +116,8 @@
     "setup": "Setup",
     "nothingMatchesTheseFilters": "Nothing matches these filters.",
     "builtAgo": "built {{ago}}",
-    "notDownloadedYet": "not downloaded yet"
+    "notDownloadedYet": "not downloaded yet",
+    "toAddHostsAndImages": "to add hosts and images."
   },
   "matchStatus": {
     "failed": "Failed",
@@ -222,7 +223,8 @@
     "kubernetes": "Kubernetes",
     "onEachHost": "On each host:",
     "oncePerClusterTheHelm": "Once per cluster: the Helm chart runs vulns-agent on every node, new nodes included. Nodes appear under Hosts as Kubernetes nodes.",
-    "theAgentMountsEachNode": "The agent mounts each node's / read-only (hostPath), which the Pod Security baseline and restricted levels forbid. If your cluster enforces them, allow it for this namespace with"
+    "theAgentMountsEachNode": "The agent mounts each node's / read-only (hostPath), which the Pod Security baseline and restricted levels forbid. If your cluster enforces them, allow it for this namespace with",
+    "autopilotCannotRunIt": "Clusters that forbid hostPath entirely, such as GKE Autopilot, cannot run it."
   },
   "imagesPanel": {
     "checkImagesInCi": "Check images in CI",
@@ -238,7 +240,8 @@
     "threeStepsTheVulnerabilityData": "Three steps: the vulnerability data, your hosts, your images. Findings show here as soon as the first host or image is matched; you can also send just one of them.",
     "waitingForTheFirstHost": "Waiting for the first host or image",
     "vulnsAgentSendsVulnsIngest": "vulns-agent sends VULNS_INGEST_TOKEN, set where vulns runs (with the Helm chart it is in the release's Secret). CI can use it too, or an API token with the editor role from",
-    "apiTokens": "API tokens"
+    "apiTokens": "API tokens",
+    "everythingHereIsAlsoIn": "Everything here is also in the"
   },
   "settingsPage": {
     "adminsOnly": "Admins only",
