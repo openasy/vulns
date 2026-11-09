@@ -83,12 +83,12 @@ import {
   type Vulnerability,
   type VulnerabilityDetail,
 } from "./api.ts";
-import { useT, type T } from "./i18n.ts";
+import { useT, type T, viewerLocale, setViewerLocale, fixed } from "./i18n.ts";
 import { search } from "./search.ts";
 
 // Grype's "negligible" and "unknown" have no level of their own in the shared scale.
 const ui = (s: Severity): UiSeverity => (s === "negligible" || s === "unknown" ? "info" : s);
-const pct = (v: number | null) => (v === null ? "–" : `${(v * 100).toFixed(1)}%`);
+const pct = (v: number | null) => (v === null ? "–" : `${fixed(v * 100, 1)}%`);
 
 const PAGES = ["hosts", "images", "exceptions", "setup", "account", "members", "signin", "tokens", "about"] as const;
 type Route = { page: "overview" | "findings" | (typeof PAGES)[number] } | { page: "asset"; id: string };
@@ -231,7 +231,7 @@ function VulnPanel({ id, call, onClose, onChanged }: { id: string; call: Call; o
         <div className="flex flex-col gap-3 text-sm">
           <div className="flex flex-wrap items-center gap-1.5">
             <SeverityBadge severity={ui(detail.severity)} />
-            {detail.cvss !== null && <Badge mono>CVSS {detail.cvss.toFixed(1)}</Badge>}
+            {detail.cvss !== null && <Badge mono>CVSS {fixed(detail.cvss, 1)}</Badge>}
             <Badge mono>EPSS {pct(detail.epss)}</Badge>
             {detail.knownExploited && (
               <StatusBadge tone="danger">
@@ -352,7 +352,7 @@ function OverviewPage({ call, summary }: { call: Call; summary?: Summary }) {
     return () => clearInterval(timer);
   }, [call]);
   const s = summary;
-  const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+  const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(viewerLocale(), { month: "short", day: "numeric", timeZone: "UTC" });
   const color = (sev: Severity) => TONE_COLORS[SEVERITY_META[ui(sev)].tone];
   const other = s ? s.open.negligible + s.open.unknown : 0;
   const fixTotal = o ? o.fix.fixed + o.fix.notFixed + o.fix.wontFix : 0;
@@ -1055,7 +1055,7 @@ function ExceptionsPage({ call, reload }: { call: Call; reload: () => void }) {
       id: "expires",
       header: t("exceptionsPage.expires"),
       sortValue: (e) => e.expiresAt,
-      cell: (e) => <span className="text-xs">{new Date(e.expiresAt).toLocaleDateString()}</span>,
+      cell: (e) => <span className="text-xs">{new Date(e.expiresAt).toLocaleDateString(viewerLocale())}</span>,
     },
     {
       id: "state",
@@ -1156,7 +1156,7 @@ function FeedPanel({ call, feed, reload, step }: { call: Call; feed?: Feed; relo
         <dt className="text-fg-muted">{t("feedPanel.built")}</dt>
         <dd className="m-0">
           {feed?.built
-            ? `${new Date(feed.built).toLocaleString()} (${ago(feed.built)})`
+            ? `${new Date(feed.built).toLocaleString(viewerLocale())} (${ago(feed.built)})`
             : feed?.updating
               ? t("feedPanel.downloadingNowAbout200Mb")
               : t("feedPanel.notDownloadedYet")}
@@ -1413,6 +1413,7 @@ export function App() {
   const installBrand = useInstallBrand();
   const [theme] = useThemePreference();
   const [locale] = useLocalePreference();
+  setViewerLocale(locale);
   return (
     // The install's brand from config/brand.env (ADR 0053); OpenAsy's own look where it sets none.
     <BrandProvider theme={theme} locale={locale} brand={{ name: "OpenAsy", organization: undefined, ...installBrand }} className="min-h-screen">
