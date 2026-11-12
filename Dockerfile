@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Grype matches SBOMs against vulnerability data. Pinned by digest (ADR 0027); Dependabot proposes updates.
-FROM anchore/grype:v0.120.1@sha256:e4a44ef45d285b829ce6efe2642980329661bd2d18eab5fc539138d4adaebbbe AS grype
+FROM anchore/grype:v0.121.3@sha256:13113eeceab017260370cf540e1d25442c59665fd07d1b09b66d63bb0c282887 AS grype
 
 FROM node:26.12.0-trixie-slim AS build
 WORKDIR /app
